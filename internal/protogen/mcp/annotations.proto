@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package mcp.annotations;
+
+import "google/protobuf/descriptor.proto";
+
+option go_package = "github.com/omrikiei/protoc-gen-mcp/internal/protogen/mcp";
+
+extend google.protobuf.ServiceOptions {
+  bool mcp_service = 50000;
+  string mcp_version = 50001;
+  string mcp_type = 50002;
+}
+
+extend google.protobuf.MethodOptions {
+  bool mcp_method = 50000;
+  string mcp_http_method = 50001;
+  string mcp_path = 50002;
+}
+
+extend google.protobuf.FieldOptions {
+  bool mcp_path_param = 50000;
+  bool mcp_query_param = 50001;
+} 

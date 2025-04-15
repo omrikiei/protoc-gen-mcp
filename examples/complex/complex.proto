@@ -1,0 +1,92 @@
+syntax = "proto3";
+
+package complex;
+
+import "internal/protogen/mcp/annotations.proto";
+
+option go_package = "github.com/omrikiei/protoc-gen-mcp/examples/complex";
+
+service ComplexService {
+  option (mcp.annotations.mcp_service) = true;
+  option (mcp.annotations.mcp_version) = "v1";
+  option (mcp.annotations.mcp_type) = "complex";
+
+  // Example with multiple path parameters
+  rpc GetUserProfile (UserProfileRequest) returns (UserProfileResponse) {
+    option (mcp.annotations.mcp_method) = true;
+    option (mcp.annotations.mcp_http_method) = "GET";
+    option (mcp.annotations.mcp_path) = "/v1/users/{user_id}/profiles/{profile_id}";
+  }
+
+  // Example with nested path parameters
+  rpc GetNestedResource (NestedRequest) returns (NestedResponse) {
+    option (mcp.annotations.mcp_method) = true;
+    option (mcp.annotations.mcp_http_method) = "GET";
+    option (mcp.annotations.mcp_path) = "/v1/orgs/{org_id}/teams/{team_id}/members/{member_id}";
+  }
+
+  // Example with complex query parameters
+  rpc SearchResources (SearchRequest) returns (SearchResponse) {
+    option (mcp.annotations.mcp_method) = true;
+    option (mcp.annotations.mcp_http_method) = "GET";
+    option (mcp.annotations.mcp_path) = "/v1/resources";
+  }
+}
+
+message UserProfileRequest {
+  string user_id = 1 [(mcp.annotations.mcp_path_param) = true];
+  string profile_id = 2 [(mcp.annotations.mcp_path_param) = true];
+  bool include_details = 3 [(mcp.annotations.mcp_query_param) = true];
+  int32 max_depth = 4 [(mcp.annotations.mcp_query_param) = true];
+}
+
+message UserProfileResponse {
+  string user_id = 1;
+  string profile_id = 2;
+  string name = 3;
+  string email = 4;
+  map<string, string> metadata = 5;
+}
+
+message NestedRequest {
+  string org_id = 1 [(mcp.annotations.mcp_path_param) = true];
+  string team_id = 2 [(mcp.annotations.mcp_path_param) = true];
+  string member_id = 3 [(mcp.annotations.mcp_path_param) = true];
+  bool recursive = 4 [(mcp.annotations.mcp_query_param) = true];
+}
+
+message NestedResponse {
+  string org_id = 1;
+  string team_id = 2;
+  string member_id = 3;
+  string name = 4;
+  string role = 5;
+  repeated string permissions = 6;
+}
+
+message SearchRequest {
+  string query = 1 [(mcp.annotations.mcp_query_param) = true];
+  int32 page = 2 [(mcp.annotations.mcp_query_param) = true];
+  int32 page_size = 3 [(mcp.annotations.mcp_query_param) = true];
+  repeated string filters = 4 [(mcp.annotations.mcp_query_param) = true];
+  bool include_deleted = 5 [(mcp.annotations.mcp_query_param) = true];
+  string sort_by = 6 [(mcp.annotations.mcp_query_param) = true];
+  bool sort_desc = 7 [(mcp.annotations.mcp_query_param) = true];
+}
+
+message SearchResponse {
+  repeated Resource resources = 1;
+  int32 total_count = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+message Resource {
+  string id = 1;
+  string name = 2;
+  string type = 3;
+  map<string, string> metadata = 4;
+  bool deleted = 5;
+  int64 created_at = 6;
+  int64 updated_at = 7;
+} 

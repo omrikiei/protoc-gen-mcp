@@ -1,0 +1,52 @@
+syntax = "proto3";
+
+package helloworld;
+
+import "internal/protogen/mcp/annotations.proto";
+
+option go_package = "github.com/omrikiei/protoc-gen-mcp/examples/helloworld";
+
+// The greeting service definition.
+service Greeter {
+  option (mcp.annotations.mcp_service) = true;
+  option (mcp.annotations.mcp_version) = "v1";
+  option (mcp.annotations.mcp_type) = "greeter";
+
+  // Sends a greeting
+  rpc SayHello (HelloRequest) returns (HelloReply) {
+    option (mcp.annotations.mcp_method) = true;
+    option (mcp.annotations.mcp_http_method) = "GET";
+    option (mcp.annotations.mcp_path) = "/v1/hello/{name}";
+  }
+
+  // Sends a greeting with query parameters
+  rpc SayHelloWithQuery (HelloRequest) returns (HelloReply) {
+    option (mcp.annotations.mcp_method) = true;
+    option (mcp.annotations.mcp_http_method) = "GET";
+    option (mcp.annotations.mcp_path) = "/v1/hello";
+  }
+}
+
+// The request message containing the user's name.
+message HelloRequest {
+  // The name of the person to greet
+  string name = 1 [
+    (mcp.annotations.mcp_path_param) = true,
+    (mcp.annotations.mcp_query_param) = true
+  ];
+
+  // The language to use for the greeting
+  string language = 2 [(mcp.annotations.mcp_query_param) = true];
+
+  // Whether to use formal greeting
+  bool formal = 3 [(mcp.annotations.mcp_query_param) = true];
+
+  // The number of times to repeat the greeting
+  int32 repeat = 4 [(mcp.annotations.mcp_query_param) = true];
+}
+
+// The response message containing the greeting
+message HelloReply {
+  // The greeting message
+  string message = 1;
+} 

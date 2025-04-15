@@ -1,0 +1,19 @@
+{
+  "rules": [
+    {
+      "name": "Go Format",
+      "pattern": "**/*.go",
+      "command": "go fmt"
+    },
+    {
+      "name": "Go Lint",
+      "pattern": "**/*.go",
+      "command": "golangci-lint run"
+    },
+    {
+      "name": "Go Test",
+      "pattern": "**/*_test.go",
+      "command": "go test -v"
+    }
+  ]
+} 
