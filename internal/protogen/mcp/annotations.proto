@@ -6,19 +6,70 @@ import "google/protobuf/descriptor.proto";
 
 option go_package = "github.com/omrikiei/protoc-gen-mcp/internal/protogen/mcp";
 
+// Service level annotations
 extend google.protobuf.ServiceOptions {
+  // Basic MCP service configuration
   bool mcp_service = 50000;
   string mcp_version = 50001;
   string mcp_type = 50002;
+
+  // Resource configuration
+  bool mcp_resource_service = 50003;
+  string mcp_resource_base_uri = 50004;
+  
+  // Security configuration
+  bool mcp_auth_required = 50005;
+  string mcp_auth_methods = 50006;  // Comma-separated list of auth methods
+  string mcp_rate_limit = 50007;
 }
 
+// Method level annotations
 extend google.protobuf.MethodOptions {
+  // Basic MCP method configuration
   bool mcp_method = 50000;
   string mcp_http_method = 50001;
   string mcp_path = 50002;
+
+  // Resource method configuration
+  bool mcp_resource_list = 50003;
+  bool mcp_resource_read = 50004;
+  bool mcp_resource_write = 50005;
+  string mcp_resource_mime_type = 50006;
+
+  // Progress reporting
+  bool mcp_progress_enabled = 50007;
+  string mcp_progress_type = 50008; // "determinate" or "indeterminate"
+
+  // Streaming configuration
+  bool mcp_streaming = 50009;
+  string mcp_stream_mode = 50010; // "sse" or "websocket"
 }
 
+// Field level annotations
 extend google.protobuf.FieldOptions {
+  // Parameter types
   bool mcp_path_param = 50000;
   bool mcp_query_param = 50001;
+
+  // Resource field configuration
+  bool mcp_resource_uri = 50002;
+  bool mcp_resource_template = 50003;
+  string mcp_resource_format = 50004; // "text" or "binary"
+  
+  // Security field configuration
+  bool mcp_sensitive = 50005;
+  string mcp_validation_pattern = 50006;
+  string mcp_validation_message = 50007;
+}
+
+// Message level annotations
+extend google.protobuf.MessageOptions {
+  // Resource template configuration
+  bool mcp_resource_template_message = 50000;
+  string mcp_uri_template = 50001;
+  string mcp_template_description = 50002;
+  
+  // Security configuration
+  string mcp_required_roles = 50003;  // Comma-separated list of roles
+  string mcp_access_level = 50004;
 } 

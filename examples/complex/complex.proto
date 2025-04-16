@@ -6,49 +6,88 @@ import "internal/protogen/mcp/annotations.proto";
 
 option go_package = "github.com/omrikiei/protoc-gen-mcp/examples/complex";
 
+// Complex service demonstrating advanced MCP features
 service ComplexService {
   option (mcp.annotations.mcp_service) = true;
   option (mcp.annotations.mcp_version) = "v1";
   option (mcp.annotations.mcp_type) = "complex";
+  option (mcp.annotations.mcp_resource_service) = true;
+  option (mcp.annotations.mcp_resource_base_uri) = "complex://";
+  option (mcp.annotations.mcp_auth_required) = true;
+  option (mcp.annotations.mcp_auth_methods) = "bearer,oauth2";
+  option (mcp.annotations.mcp_rate_limit) = "1000/m";
 
-  // Example with multiple path parameters
+  // Example with multiple path parameters and resource handling
   rpc GetUserProfile (UserProfileRequest) returns (UserProfileResponse) {
     option (mcp.annotations.mcp_method) = true;
     option (mcp.annotations.mcp_http_method) = "GET";
     option (mcp.annotations.mcp_path) = "/v1/users/{user_id}/profiles/{profile_id}";
+    option (mcp.annotations.mcp_resource_read) = true;
+    option (mcp.annotations.mcp_resource_mime_type) = "application/json";
+    option (mcp.annotations.mcp_progress_enabled) = true;
+    option (mcp.annotations.mcp_progress_type) = "determinate";
   }
 
-  // Example with nested path parameters
-  rpc GetNestedResource (NestedRequest) returns (NestedResponse) {
+  // Example with nested path parameters and streaming
+  rpc GetNestedResource (NestedRequest) returns (stream NestedResponse) {
     option (mcp.annotations.mcp_method) = true;
     option (mcp.annotations.mcp_http_method) = "GET";
     option (mcp.annotations.mcp_path) = "/v1/orgs/{org_id}/teams/{team_id}/members/{member_id}";
+    option (mcp.annotations.mcp_streaming) = true;
+    option (mcp.annotations.mcp_stream_mode) = "sse";
   }
 
-  // Example with complex query parameters
+  // Example with complex query parameters and resource listing
   rpc SearchResources (SearchRequest) returns (SearchResponse) {
     option (mcp.annotations.mcp_method) = true;
     option (mcp.annotations.mcp_http_method) = "GET";
     option (mcp.annotations.mcp_path) = "/v1/resources";
+    option (mcp.annotations.mcp_resource_list) = true;
+    option (mcp.annotations.mcp_progress_enabled) = true;
+    option (mcp.annotations.mcp_progress_type) = "indeterminate";
+  }
+
+  // Example with resource writing and binary data
+  rpc UploadResource (UploadRequest) returns (Resource) {
+    option (mcp.annotations.mcp_method) = true;
+    option (mcp.annotations.mcp_http_method) = "POST";
+    option (mcp.annotations.mcp_path) = "/v1/resources/upload";
+    option (mcp.annotations.mcp_resource_write) = true;
+    option (mcp.annotations.mcp_progress_enabled) = true;
   }
 }
 
 message UserProfileRequest {
-  string user_id = 1 [(mcp.annotations.mcp_path_param) = true];
+  option (mcp.annotations.mcp_required_roles) = "admin,user";
+  option (mcp.annotations.mcp_access_level) = "read";
+
+  string user_id = 1 [
+    (mcp.annotations.mcp_path_param) = true,
+    (mcp.annotations.mcp_validation_pattern) = "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+    (mcp.annotations.mcp_validation_message) = "User ID must be a valid UUID"
+  ];
   string profile_id = 2 [(mcp.annotations.mcp_path_param) = true];
   bool include_details = 3 [(mcp.annotations.mcp_query_param) = true];
   int32 max_depth = 4 [(mcp.annotations.mcp_query_param) = true];
 }
 
 message UserProfileResponse {
+  option (mcp.annotations.mcp_resource_template_message) = true;
+  option (mcp.annotations.mcp_uri_template) = "complex://users/{user_id}/profiles/{profile_id}";
+  option (mcp.annotations.mcp_template_description) = "User profile resource template";
+
   string user_id = 1;
   string profile_id = 2;
   string name = 3;
-  string email = 4;
+  string email = 4 [(mcp.annotations.mcp_sensitive) = true];
   map<string, string> metadata = 5;
+  bytes avatar = 6 [(mcp.annotations.mcp_resource_format) = "binary"];
 }
 
 message NestedRequest {
+  option (mcp.annotations.mcp_required_roles) = "org_admin";
+  option (mcp.annotations.mcp_access_level) = "read";
+
   string org_id = 1 [(mcp.annotations.mcp_path_param) = true];
   string team_id = 2 [(mcp.annotations.mcp_path_param) = true];
   string member_id = 3 [(mcp.annotations.mcp_path_param) = true];
@@ -56,6 +95,9 @@ message NestedRequest {
 }
 
 message NestedResponse {
+  option (mcp.annotations.mcp_resource_template_message) = true;
+  option (mcp.annotations.mcp_uri_template) = "complex://orgs/{org_id}/teams/{team_id}/members/{member_id}";
+
   string org_id = 1;
   string team_id = 2;
   string member_id = 3;
@@ -66,8 +108,16 @@ message NestedResponse {
 
 message SearchRequest {
   string query = 1 [(mcp.annotations.mcp_query_param) = true];
-  int32 page = 2 [(mcp.annotations.mcp_query_param) = true];
-  int32 page_size = 3 [(mcp.annotations.mcp_query_param) = true];
+  int32 page = 2 [
+    (mcp.annotations.mcp_query_param) = true,
+    (mcp.annotations.mcp_validation_pattern) = "^[1-9][0-9]*$",
+    (mcp.annotations.mcp_validation_message) = "Page number must be positive"
+  ];
+  int32 page_size = 3 [
+    (mcp.annotations.mcp_query_param) = true,
+    (mcp.annotations.mcp_validation_pattern) = "^[1-9][0-9]*$",
+    (mcp.annotations.mcp_validation_message) = "Page size must be positive"
+  ];
   repeated string filters = 4 [(mcp.annotations.mcp_query_param) = true];
   bool include_deleted = 5 [(mcp.annotations.mcp_query_param) = true];
   string sort_by = 6 [(mcp.annotations.mcp_query_param) = true];
@@ -79,14 +129,33 @@ message SearchResponse {
   int32 total_count = 2;
   int32 page = 3;
   int32 page_size = 4;
+  float progress_percent = 5;
 }
 
 message Resource {
-  string id = 1;
+  option (mcp.annotations.mcp_resource_template_message) = true;
+  option (mcp.annotations.mcp_uri_template) = "complex://resources/{id}";
+  option (mcp.annotations.mcp_template_description) = "Generic resource template";
+
+  string id = 1 [(mcp.annotations.mcp_resource_uri) = true];
   string name = 2;
   string type = 3;
   map<string, string> metadata = 4;
   bool deleted = 5;
   int64 created_at = 6;
   int64 updated_at = 7;
+  bytes content = 8 [(mcp.annotations.mcp_resource_format) = "binary"];
+}
+
+message UploadRequest {
+  option (mcp.annotations.mcp_required_roles) = "content_creator";
+  option (mcp.annotations.mcp_access_level) = "write";
+
+  string name = 1 [
+    (mcp.annotations.mcp_validation_pattern) = "^[a-zA-Z0-9_-]{1,100}$",
+    (mcp.annotations.mcp_validation_message) = "Name must be 1-100 characters long and contain only letters, numbers, underscores, and hyphens"
+  ];
+  string type = 2;
+  map<string, string> metadata = 3;
+  bytes content = 4 [(mcp.annotations.mcp_resource_format) = "binary"];
 } 

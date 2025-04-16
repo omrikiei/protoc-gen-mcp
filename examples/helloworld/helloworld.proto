@@ -11,12 +11,17 @@ service Greeter {
   option (mcp.annotations.mcp_service) = true;
   option (mcp.annotations.mcp_version) = "v1";
   option (mcp.annotations.mcp_type) = "greeter";
+  option (mcp.annotations.mcp_auth_required) = true;
+  option (mcp.annotations.mcp_auth_methods) = "bearer";
+  option (mcp.annotations.mcp_rate_limit) = "100/s";
 
   // Sends a greeting
   rpc SayHello (HelloRequest) returns (HelloReply) {
     option (mcp.annotations.mcp_method) = true;
     option (mcp.annotations.mcp_http_method) = "GET";
     option (mcp.annotations.mcp_path) = "/v1/hello/{name}";
+    option (mcp.annotations.mcp_progress_enabled) = true;
+    option (mcp.annotations.mcp_progress_type) = "determinate";
   }
 
   // Sends a greeting with query parameters
@@ -25,28 +30,55 @@ service Greeter {
     option (mcp.annotations.mcp_http_method) = "GET";
     option (mcp.annotations.mcp_path) = "/v1/hello";
   }
+
+  // Streams greetings
+  rpc StreamGreetings (HelloRequest) returns (stream HelloReply) {
+    option (mcp.annotations.mcp_method) = true;
+    option (mcp.annotations.mcp_http_method) = "GET";
+    option (mcp.annotations.mcp_path) = "/v1/hello/stream/{name}";
+    option (mcp.annotations.mcp_streaming) = true;
+    option (mcp.annotations.mcp_stream_mode) = "sse";
+  }
 }
 
 // The request message containing the user's name.
 message HelloRequest {
+  option (mcp.annotations.mcp_required_roles) = "user";
+  option (mcp.annotations.mcp_access_level) = "read";
+
   // The name of the person to greet
   string name = 1 [
     (mcp.annotations.mcp_path_param) = true,
-    (mcp.annotations.mcp_query_param) = true
+    (mcp.annotations.mcp_query_param) = true,
+    (mcp.annotations.mcp_validation_pattern) = "^[a-zA-Z0-9_]{3,50}$",
+    (mcp.annotations.mcp_validation_message) = "Name must be 3-50 characters long and contain only letters, numbers, and underscores"
   ];
 
   // The language to use for the greeting
-  string language = 2 [(mcp.annotations.mcp_query_param) = true];
+  string language = 2 [
+    (mcp.annotations.mcp_query_param) = true,
+    (mcp.annotations.mcp_validation_pattern) = "^(en|es|fr|de)$",
+    (mcp.annotations.mcp_validation_message) = "Language must be one of: en, es, fr, de"
+  ];
 
   // Whether to use formal greeting
   bool formal = 3 [(mcp.annotations.mcp_query_param) = true];
 
   // The number of times to repeat the greeting
-  int32 repeat = 4 [(mcp.annotations.mcp_query_param) = true];
+  int32 repeat = 4 [
+    (mcp.annotations.mcp_query_param) = true,
+    (mcp.annotations.mcp_validation_pattern) = "^[1-9][0-9]?$",
+    (mcp.annotations.mcp_validation_message) = "Repeat count must be between 1 and 99"
+  ];
 }
 
 // The response message containing the greeting
 message HelloReply {
   // The greeting message
   string message = 1;
+  
+  // Progress information
+  int32 current_repeat = 2;
+  int32 total_repeats = 3;
+  float progress_percent = 4;
 } 

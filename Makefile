@@ -28,3 +28,5 @@ example:
 		--go-grpc_out=. --go-grpc_opt=paths=source_relative \
 		--mcp_out=. --mcp_opt=paths=source_relative \
 		helloworld.proto 
+generate:
+	go build -o ~/go/bin/protoc-gen-mcp cmd/protoc-gen-mcp/main.go && ./scripts/generate.sh
