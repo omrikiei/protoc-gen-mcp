@@ -11,33 +11,32 @@ service Greeter {
   option (mcp.annotations.mcp_service) = true;
   option (mcp.annotations.mcp_version) = "v1";
   option (mcp.annotations.mcp_type) = "greeter";
-  option (mcp.annotations.mcp_auth_required) = true;
-  option (mcp.annotations.mcp_auth_methods) = "bearer";
-  option (mcp.annotations.mcp_rate_limit) = "100/s";
 
   // Sends a greeting
   rpc SayHello (HelloRequest) returns (HelloReply) {
-    option (mcp.annotations.mcp_method) = true;
-    option (mcp.annotations.mcp_http_method) = "GET";
-    option (mcp.annotations.mcp_path) = "/v1/hello/{name}";
-    option (mcp.annotations.mcp_progress_enabled) = true;
-    option (mcp.annotations.mcp_progress_type) = "determinate";
+    option (mcp.annotations.mcp_tool) = true;
+    option (mcp.annotations.mcp_tool_description) = "Sends a simple greeting to the user";
+    option (mcp.annotations.mcp_tool_title) = "Say Hello";
+    option (mcp.annotations.mcp_tool_read_only) = true;
+    option (mcp.annotations.mcp_tool_idempotent) = true;
   }
 
   // Sends a greeting with query parameters
   rpc SayHelloWithQuery (HelloRequest) returns (HelloReply) {
-    option (mcp.annotations.mcp_method) = true;
-    option (mcp.annotations.mcp_http_method) = "GET";
-    option (mcp.annotations.mcp_path) = "/v1/hello";
+    option (mcp.annotations.mcp_tool) = true;
+    option (mcp.annotations.mcp_tool_description) = "Sends a greeting with additional query parameters";
+    option (mcp.annotations.mcp_tool_title) = "Say Hello with Query";
+    option (mcp.annotations.mcp_tool_read_only) = true;
+    option (mcp.annotations.mcp_tool_idempotent) = true;
   }
 
   // Streams greetings
   rpc StreamGreetings (HelloRequest) returns (stream HelloReply) {
-    option (mcp.annotations.mcp_method) = true;
-    option (mcp.annotations.mcp_http_method) = "GET";
-    option (mcp.annotations.mcp_path) = "/v1/hello/stream/{name}";
-    option (mcp.annotations.mcp_streaming) = true;
-    option (mcp.annotations.mcp_stream_mode) = "sse";
+    option (mcp.annotations.mcp_tool) = true;
+    option (mcp.annotations.mcp_tool_description) = "Streams multiple greetings to the user";
+    option (mcp.annotations.mcp_tool_title) = "Stream Greetings";
+    option (mcp.annotations.mcp_tool_read_only) = true;
+    option (mcp.annotations.mcp_tool_idempotent) = true;
   }
 }
 

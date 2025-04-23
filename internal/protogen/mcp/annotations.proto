@@ -17,32 +17,29 @@ extend google.protobuf.ServiceOptions {
   bool mcp_resource_service = 50003;
   string mcp_resource_base_uri = 50004;
   
-  // Security configuration
-  bool mcp_auth_required = 50005;
-  string mcp_auth_methods = 50006;  // Comma-separated list of auth methods
-  string mcp_rate_limit = 50007;
+  // Description
+  string mcp_server_description = 50006;
 }
 
 // Method level annotations
 extend google.protobuf.MethodOptions {
   // Basic MCP method configuration
-  bool mcp_method = 50000;
-  string mcp_http_method = 50001;
-  string mcp_path = 50002;
+  bool mcp_tool = 50000;
+  
+  // Description
+  string mcp_tool_description = 50001;
 
-  // Resource method configuration
-  bool mcp_resource_list = 50003;
-  bool mcp_resource_read = 50004;
-  bool mcp_resource_write = 50005;
-  string mcp_resource_mime_type = 50006;
-
-  // Progress reporting
-  bool mcp_progress_enabled = 50007;
-  string mcp_progress_type = 50008; // "determinate" or "indeterminate"
-
-  // Streaming configuration
-  bool mcp_streaming = 50009;
-  string mcp_stream_mode = 50010; // "sse" or "websocket"
+  // Tool annotations
+  // Human-readable title for the tool
+  string mcp_tool_title = 50002;
+  // If true, the tool does not modify its environment
+  bool mcp_tool_read_only = 50003;
+  // If true, the tool may perform destructive updates
+  bool mcp_tool_destructive = 50004;
+  // If true, repeated calls with same args have no additional effect
+  bool mcp_tool_idempotent = 50005;
+  // If true, tool interacts with external entities
+  bool mcp_tool_open_world = 50006;
 }
 
 // Field level annotations
@@ -50,16 +47,13 @@ extend google.protobuf.FieldOptions {
   // Parameter types
   bool mcp_path_param = 50000;
   bool mcp_query_param = 50001;
-
-  // Resource field configuration
   bool mcp_resource_uri = 50002;
-  bool mcp_resource_template = 50003;
-  string mcp_resource_format = 50004; // "text" or "binary"
   
-  // Security field configuration
-  bool mcp_sensitive = 50005;
-  string mcp_validation_pattern = 50006;
-  string mcp_validation_message = 50007;
+  // Field properties
+  string mcp_field_description = 50003;
+  bool mcp_required = 50004;
+  string mcp_validation_pattern = 50005;
+  string mcp_validation_message = 50006;
 }
 
 // Message level annotations
@@ -70,6 +64,6 @@ extend google.protobuf.MessageOptions {
   string mcp_template_description = 50002;
   
   // Security configuration
-  string mcp_required_roles = 50003;  // Comma-separated list of roles
+  string mcp_required_roles = 50003;
   string mcp_access_level = 50004;
 } 

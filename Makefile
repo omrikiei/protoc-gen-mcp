@@ -1,4 +1,4 @@
-.PHONY: all build install clean
+.PHONY: all build install clean protogen generate
 
 # Go parameters
 GOCMD=go
@@ -21,12 +21,21 @@ clean:
 	rm -f $(BINARY_NAME)
 	rm -f $(INSTALL_PATH)/$(BINARY_NAME)
 
-# Example usage target
-example:
-	cd examples/helloworld && \
-	protoc --go_out=. --go_opt=paths=source_relative \
-		--go-grpc_out=. --go-grpc_opt=paths=source_relative \
-		--mcp_out=. --mcp_opt=paths=source_relative \
-		helloworld.proto 
-generate:
+# Generate protobuf files for internal/protogen
+protogen:
+	mkdir -p internal/protogen/mcp
+	protoc \
+		--go_out=. \
+		--go_opt=paths=source_relative \
+		--go-grpc_out=. \
+		--go-grpc_opt=paths=source_relative \
+		internal/protogen/mcp/annotations.proto \
+		internal/protogen/mcp/service.proto
+
+# Generate example protobuf files
+examples:
 	go build -o ~/go/bin/protoc-gen-mcp cmd/protoc-gen-mcp/main.go && ./scripts/generate.sh
+
+# Generate all protobuf files (both internal and examples)
+generate: protogen examples
+	@echo "All protobuf files generated successfully"
