@@ -6,9 +6,13 @@ package complex_mcp
 import (
 	context "context"
 	fmt "fmt"
+	"reflect"
+	"strings"
+
 	mcp "github.com/mark3labs/mcp-go/mcp"
 	server "github.com/mark3labs/mcp-go/server"
 	complex1 "github.com/omrikiei/protoc-gen-mcp/examples/complex"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 // ComplexServiceServer is the MCP server API for ComplexService service.
@@ -34,6 +38,191 @@ func NewComplexServiceMCPServer(srv ComplexServiceServer) *ComplexServiceMCPServ
 			"v1",
 		),
 	}
+
+	// Register resources for request and response messages
+	// Register complex1.UserProfileRequest as resource
+	s.mcpServer.AddResource(mcp.Resource{
+		URI:         "complex1.UserProfileRequest",
+		Name:        "complex1.UserProfileRequest",
+		Description: "Request message for GetUserProfile method",
+		MIMEType:    "application/json",
+	}, func(ctx context.Context, request mcp.ReadResourceRequest) ([]mcp.ResourceContents, error) {
+		// Create a new instance of the request message
+		req := &complex1.UserProfileRequest{}
+		// Convert request parameters to message fields
+		if err := convertParamsToMessage(request.Params.Arguments, req); err != nil {
+			return nil, err
+		}
+		// Serialize the message to JSON
+		jsonBytes, err := protojson.Marshal(req)
+		if err != nil {
+			return nil, fmt.Errorf("failed to serialize message: %v", err)
+		}
+		return []mcp.ResourceContents{mcp.TextResourceContents{
+			Text: string(jsonBytes),
+		}}, nil
+	})
+
+	// Register complex1.UserProfileResponse as resource
+	s.mcpServer.AddResource(mcp.Resource{
+		URI:         "complex1.UserProfileResponse",
+		Name:        "complex1.UserProfileResponse",
+		Description: "Response message for GetUserProfile method",
+		MIMEType:    "application/json",
+	}, func(ctx context.Context, request mcp.ReadResourceRequest) ([]mcp.ResourceContents, error) {
+		// Create a new instance of the response message
+		resp := &complex1.UserProfileResponse{}
+		// Convert request parameters to message fields
+		if err := convertParamsToMessage(request.Params.Arguments, resp); err != nil {
+			return nil, err
+		}
+		// Serialize the message to JSON
+		jsonBytes, err := protojson.Marshal(resp)
+		if err != nil {
+			return nil, fmt.Errorf("failed to serialize message: %v", err)
+		}
+		return []mcp.ResourceContents{mcp.TextResourceContents{
+			Text: string(jsonBytes),
+		}}, nil
+	})
+
+	// Register complex1.NestedRequest as resource
+	s.mcpServer.AddResource(mcp.Resource{
+		URI:         "complex1.NestedRequest",
+		Name:        "complex1.NestedRequest",
+		Description: "Request message for GetNestedResource method",
+		MIMEType:    "application/json",
+	}, func(ctx context.Context, request mcp.ReadResourceRequest) ([]mcp.ResourceContents, error) {
+		// Create a new instance of the request message
+		req := &complex1.NestedRequest{}
+		// Convert request parameters to message fields
+		if err := convertParamsToMessage(request.Params.Arguments, req); err != nil {
+			return nil, err
+		}
+		// Serialize the message to JSON
+		jsonBytes, err := protojson.Marshal(req)
+		if err != nil {
+			return nil, fmt.Errorf("failed to serialize message: %v", err)
+		}
+		return []mcp.ResourceContents{mcp.TextResourceContents{
+			Text: string(jsonBytes),
+		}}, nil
+	})
+
+	// Register complex1.NestedResponse as resource
+	s.mcpServer.AddResource(mcp.Resource{
+		URI:         "complex1.NestedResponse",
+		Name:        "complex1.NestedResponse",
+		Description: "Response message for GetNestedResource method",
+		MIMEType:    "application/json",
+	}, func(ctx context.Context, request mcp.ReadResourceRequest) ([]mcp.ResourceContents, error) {
+		// Create a new instance of the response message
+		resp := &complex1.NestedResponse{}
+		// Convert request parameters to message fields
+		if err := convertParamsToMessage(request.Params.Arguments, resp); err != nil {
+			return nil, err
+		}
+		// Serialize the message to JSON
+		jsonBytes, err := protojson.Marshal(resp)
+		if err != nil {
+			return nil, fmt.Errorf("failed to serialize message: %v", err)
+		}
+		return []mcp.ResourceContents{mcp.TextResourceContents{
+			Text: string(jsonBytes),
+		}}, nil
+	})
+
+	// Register complex1.SearchRequest as resource
+	s.mcpServer.AddResource(mcp.Resource{
+		URI:         "complex1.SearchRequest",
+		Name:        "complex1.SearchRequest",
+		Description: "Request message for SearchResources method",
+		MIMEType:    "application/json",
+	}, func(ctx context.Context, request mcp.ReadResourceRequest) ([]mcp.ResourceContents, error) {
+		// Create a new instance of the request message
+		req := &complex1.SearchRequest{}
+		// Convert request parameters to message fields
+		if err := convertParamsToMessage(request.Params.Arguments, req); err != nil {
+			return nil, err
+		}
+		// Serialize the message to JSON
+		jsonBytes, err := protojson.Marshal(req)
+		if err != nil {
+			return nil, fmt.Errorf("failed to serialize message: %v", err)
+		}
+		return []mcp.ResourceContents{mcp.TextResourceContents{
+			Text: string(jsonBytes),
+		}}, nil
+	})
+
+	// Register complex1.SearchResponse as resource
+	s.mcpServer.AddResource(mcp.Resource{
+		URI:         "complex1.SearchResponse",
+		Name:        "complex1.SearchResponse",
+		Description: "Response message for SearchResources method",
+		MIMEType:    "application/json",
+	}, func(ctx context.Context, request mcp.ReadResourceRequest) ([]mcp.ResourceContents, error) {
+		// Create a new instance of the response message
+		resp := &complex1.SearchResponse{}
+		// Convert request parameters to message fields
+		if err := convertParamsToMessage(request.Params.Arguments, resp); err != nil {
+			return nil, err
+		}
+		// Serialize the message to JSON
+		jsonBytes, err := protojson.Marshal(resp)
+		if err != nil {
+			return nil, fmt.Errorf("failed to serialize message: %v", err)
+		}
+		return []mcp.ResourceContents{mcp.TextResourceContents{
+			Text: string(jsonBytes),
+		}}, nil
+	})
+
+	// Register complex1.UploadRequest as resource
+	s.mcpServer.AddResource(mcp.Resource{
+		URI:         "complex1.UploadRequest",
+		Name:        "complex1.UploadRequest",
+		Description: "Request message for UploadResource method",
+		MIMEType:    "application/json",
+	}, func(ctx context.Context, request mcp.ReadResourceRequest) ([]mcp.ResourceContents, error) {
+		// Create a new instance of the request message
+		req := &complex1.UploadRequest{}
+		// Convert request parameters to message fields
+		if err := convertParamsToMessage(request.Params.Arguments, req); err != nil {
+			return nil, err
+		}
+		// Serialize the message to JSON
+		jsonBytes, err := protojson.Marshal(req)
+		if err != nil {
+			return nil, fmt.Errorf("failed to serialize message: %v", err)
+		}
+		return []mcp.ResourceContents{mcp.TextResourceContents{
+			Text: string(jsonBytes),
+		}}, nil
+	})
+
+	// Register complex1.Resource as resource
+	s.mcpServer.AddResource(mcp.Resource{
+		URI:         "complex1.Resource",
+		Name:        "complex1.Resource",
+		Description: "Response message for UploadResource method",
+		MIMEType:    "application/json",
+	}, func(ctx context.Context, request mcp.ReadResourceRequest) ([]mcp.ResourceContents, error) {
+		// Create a new instance of the response message
+		resp := &complex1.Resource{}
+		// Convert request parameters to message fields
+		if err := convertParamsToMessage(request.Params.Arguments, resp); err != nil {
+			return nil, err
+		}
+		// Serialize the message to JSON
+		jsonBytes, err := protojson.Marshal(resp)
+		if err != nil {
+			return nil, fmt.Errorf("failed to serialize message: %v", err)
+		}
+		return []mcp.ResourceContents{mcp.TextResourceContents{
+			Text: string(jsonBytes),
+		}}, nil
+	})
 
 	// Register tools for each method
 	// Create tool for GetUserProfile
@@ -320,4 +509,82 @@ func NewComplexServiceMCPServer(srv ComplexServiceServer) *ComplexServiceMCPServ
 // Start starts the MCP server
 func (s *ComplexServiceMCPServer) Start() error {
 	return server.ServeStdio(s.mcpServer)
+}
+
+// convertParamsToMessage converts MCP parameters to message fields
+func convertParamsToMessage(params map[string]interface{}, msg interface{}) error {
+	// Use reflection to set message fields
+	val := reflect.ValueOf(msg).Elem()
+	typ := val.Type()
+
+	for i := 0; i < val.NumField(); i++ {
+		field := val.Field(i)
+		fieldType := typ.Field(i)
+
+		// Get field name from protobuf tag
+		tag := fieldType.Tag.Get("protobuf")
+		if tag == "" {
+			continue
+		}
+
+		// Extract field name from protobuf tag
+		parts := strings.Split(tag, ",")
+		if len(parts) < 3 {
+			continue
+		}
+		fieldName := parts[2]
+
+		// Get value from params
+		paramVal, ok := params[fieldName]
+		if !ok {
+			continue
+		}
+
+		// Convert and set field value based on type
+		switch field.Kind() {
+		case reflect.String:
+			if strVal, ok := paramVal.(string); ok {
+				field.SetString(strVal)
+			}
+		case reflect.Int32, reflect.Int64:
+			if numVal, ok := paramVal.(float64); ok {
+				field.SetInt(int64(numVal))
+			}
+		case reflect.Uint32, reflect.Uint64:
+			if numVal, ok := paramVal.(float64); ok {
+				field.SetUint(uint64(numVal))
+			}
+		case reflect.Bool:
+			if boolVal, ok := paramVal.(bool); ok {
+				field.SetBool(boolVal)
+			}
+		case reflect.Slice:
+			if arrVal, ok := paramVal.([]interface{}); ok {
+				slice := reflect.MakeSlice(field.Type(), len(arrVal), len(arrVal))
+				for j, v := range arrVal {
+					switch field.Type().Elem().Kind() {
+					case reflect.String:
+						if strVal, ok := v.(string); ok {
+							slice.Index(j).SetString(strVal)
+						}
+					case reflect.Int32, reflect.Int64:
+						if numVal, ok := v.(float64); ok {
+							slice.Index(j).SetInt(int64(numVal))
+						}
+					case reflect.Uint32, reflect.Uint64:
+						if numVal, ok := v.(float64); ok {
+							slice.Index(j).SetUint(uint64(numVal))
+						}
+					case reflect.Bool:
+						if boolVal, ok := v.(bool); ok {
+							slice.Index(j).SetBool(boolVal)
+						}
+					}
+				}
+				field.Set(slice)
+			}
+		}
+	}
+
+	return nil
 }

@@ -6,9 +6,13 @@ package helloworld_mcp
 import (
 	context "context"
 	fmt "fmt"
+	"reflect"
+	"strings"
+
 	mcp "github.com/mark3labs/mcp-go/mcp"
 	server "github.com/mark3labs/mcp-go/server"
 	helloworld "github.com/omrikiei/protoc-gen-mcp/examples/helloworld"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 // GreeterServer is the MCP server API for Greeter service.
@@ -33,6 +37,145 @@ func NewGreeterMCPServer(srv GreeterServer) *GreeterMCPServer {
 			"v1",
 		),
 	}
+
+	// Register resources for request and response messages
+	// Register helloworld.HelloRequest as resource
+	s.mcpServer.AddResource(mcp.Resource{
+		URI:         "helloworld.HelloRequest",
+		Name:        "helloworld.HelloRequest",
+		Description: "Request message for SayHello method",
+		MIMEType:    "application/json",
+	}, func(ctx context.Context, request mcp.ReadResourceRequest) ([]mcp.ResourceContents, error) {
+		// Create a new instance of the request message
+		req := &helloworld.HelloRequest{}
+		// Convert request parameters to message fields
+		if err := convertParamsToMessage(request.Params.Arguments, req); err != nil {
+			return nil, err
+		}
+		// Serialize the message to JSON
+		jsonBytes, err := protojson.Marshal(req)
+		if err != nil {
+			return nil, fmt.Errorf("failed to serialize message: %v", err)
+		}
+		return []mcp.ResourceContents{mcp.TextResourceContents{
+			Text: string(jsonBytes),
+		}}, nil
+	})
+
+	// Register helloworld.HelloReply as resource
+	s.mcpServer.AddResource(mcp.Resource{
+		URI:         "helloworld.HelloReply",
+		Name:        "helloworld.HelloReply",
+		Description: "Response message for SayHello method",
+		MIMEType:    "application/json",
+	}, func(ctx context.Context, request mcp.ReadResourceRequest) ([]mcp.ResourceContents, error) {
+		// Create a new instance of the response message
+		resp := &helloworld.HelloReply{}
+		// Convert request parameters to message fields
+		if err := convertParamsToMessage(request.Params.Arguments, resp); err != nil {
+			return nil, err
+		}
+		// Serialize the message to JSON
+		jsonBytes, err := protojson.Marshal(resp)
+		if err != nil {
+			return nil, fmt.Errorf("failed to serialize message: %v", err)
+		}
+		return []mcp.ResourceContents{mcp.TextResourceContents{
+			Text: string(jsonBytes),
+		}}, nil
+	})
+
+	// Register helloworld.HelloRequest as resource
+	s.mcpServer.AddResource(mcp.Resource{
+		URI:         "helloworld.HelloRequest",
+		Name:        "helloworld.HelloRequest",
+		Description: "Request message for SayHelloWithQuery method",
+		MIMEType:    "application/json",
+	}, func(ctx context.Context, request mcp.ReadResourceRequest) ([]mcp.ResourceContents, error) {
+		// Create a new instance of the request message
+		req := &helloworld.HelloRequest{}
+		// Convert request parameters to message fields
+		if err := convertParamsToMessage(request.Params.Arguments, req); err != nil {
+			return nil, err
+		}
+		// Serialize the message to JSON
+		jsonBytes, err := protojson.Marshal(req)
+		if err != nil {
+			return nil, fmt.Errorf("failed to serialize message: %v", err)
+		}
+		return []mcp.ResourceContents{mcp.TextResourceContents{
+			Text: string(jsonBytes),
+		}}, nil
+	})
+
+	// Register helloworld.HelloReply as resource
+	s.mcpServer.AddResource(mcp.Resource{
+		URI:         "helloworld.HelloReply",
+		Name:        "helloworld.HelloReply",
+		Description: "Response message for SayHelloWithQuery method",
+		MIMEType:    "application/json",
+	}, func(ctx context.Context, request mcp.ReadResourceRequest) ([]mcp.ResourceContents, error) {
+		// Create a new instance of the response message
+		resp := &helloworld.HelloReply{}
+		// Convert request parameters to message fields
+		if err := convertParamsToMessage(request.Params.Arguments, resp); err != nil {
+			return nil, err
+		}
+		// Serialize the message to JSON
+		jsonBytes, err := protojson.Marshal(resp)
+		if err != nil {
+			return nil, fmt.Errorf("failed to serialize message: %v", err)
+		}
+		return []mcp.ResourceContents{mcp.TextResourceContents{
+			Text: string(jsonBytes),
+		}}, nil
+	})
+
+	// Register helloworld.HelloRequest as resource
+	s.mcpServer.AddResource(mcp.Resource{
+		URI:         "helloworld.HelloRequest",
+		Name:        "helloworld.HelloRequest",
+		Description: "Request message for StreamGreetings method",
+		MIMEType:    "application/json",
+	}, func(ctx context.Context, request mcp.ReadResourceRequest) ([]mcp.ResourceContents, error) {
+		// Create a new instance of the request message
+		req := &helloworld.HelloRequest{}
+		// Convert request parameters to message fields
+		if err := convertParamsToMessage(request.Params.Arguments, req); err != nil {
+			return nil, err
+		}
+		// Serialize the message to JSON
+		jsonBytes, err := protojson.Marshal(req)
+		if err != nil {
+			return nil, fmt.Errorf("failed to serialize message: %v", err)
+		}
+		return []mcp.ResourceContents{mcp.TextResourceContents{
+			Text: string(jsonBytes),
+		}}, nil
+	})
+
+	// Register helloworld.HelloReply as resource
+	s.mcpServer.AddResource(mcp.Resource{
+		URI:         "helloworld.HelloReply",
+		Name:        "helloworld.HelloReply",
+		Description: "Response message for StreamGreetings method",
+		MIMEType:    "application/json",
+	}, func(ctx context.Context, request mcp.ReadResourceRequest) ([]mcp.ResourceContents, error) {
+		// Create a new instance of the response message
+		resp := &helloworld.HelloReply{}
+		// Convert request parameters to message fields
+		if err := convertParamsToMessage(request.Params.Arguments, resp); err != nil {
+			return nil, err
+		}
+		// Serialize the message to JSON
+		jsonBytes, err := protojson.Marshal(resp)
+		if err != nil {
+			return nil, fmt.Errorf("failed to serialize message: %v", err)
+		}
+		return []mcp.ResourceContents{mcp.TextResourceContents{
+			Text: string(jsonBytes),
+		}}, nil
+	})
 
 	// Register tools for each method
 	// Create tool for SayHello
@@ -230,4 +373,82 @@ func NewGreeterMCPServer(srv GreeterServer) *GreeterMCPServer {
 // Start starts the MCP server
 func (s *GreeterMCPServer) Start() error {
 	return server.ServeStdio(s.mcpServer)
+}
+
+// convertParamsToMessage converts MCP parameters to message fields
+func convertParamsToMessage(params map[string]interface{}, msg interface{}) error {
+	// Use reflection to set message fields
+	val := reflect.ValueOf(msg).Elem()
+	typ := val.Type()
+
+	for i := 0; i < val.NumField(); i++ {
+		field := val.Field(i)
+		fieldType := typ.Field(i)
+
+		// Get field name from protobuf tag
+		tag := fieldType.Tag.Get("protobuf")
+		if tag == "" {
+			continue
+		}
+
+		// Extract field name from protobuf tag
+		parts := strings.Split(tag, ",")
+		if len(parts) < 3 {
+			continue
+		}
+		fieldName := parts[2]
+
+		// Get value from params
+		paramVal, ok := params[fieldName]
+		if !ok {
+			continue
+		}
+
+		// Convert and set field value based on type
+		switch field.Kind() {
+		case reflect.String:
+			if strVal, ok := paramVal.(string); ok {
+				field.SetString(strVal)
+			}
+		case reflect.Int32, reflect.Int64:
+			if numVal, ok := paramVal.(float64); ok {
+				field.SetInt(int64(numVal))
+			}
+		case reflect.Uint32, reflect.Uint64:
+			if numVal, ok := paramVal.(float64); ok {
+				field.SetUint(uint64(numVal))
+			}
+		case reflect.Bool:
+			if boolVal, ok := paramVal.(bool); ok {
+				field.SetBool(boolVal)
+			}
+		case reflect.Slice:
+			if arrVal, ok := paramVal.([]interface{}); ok {
+				slice := reflect.MakeSlice(field.Type(), len(arrVal), len(arrVal))
+				for j, v := range arrVal {
+					switch field.Type().Elem().Kind() {
+					case reflect.String:
+						if strVal, ok := v.(string); ok {
+							slice.Index(j).SetString(strVal)
+						}
+					case reflect.Int32, reflect.Int64:
+						if numVal, ok := v.(float64); ok {
+							slice.Index(j).SetInt(int64(numVal))
+						}
+					case reflect.Uint32, reflect.Uint64:
+						if numVal, ok := v.(float64); ok {
+							slice.Index(j).SetUint(uint64(numVal))
+						}
+					case reflect.Bool:
+						if boolVal, ok := v.(bool); ok {
+							slice.Index(j).SetBool(boolVal)
+						}
+					}
+				}
+				field.Set(slice)
+			}
+		}
+	}
+
+	return nil
 }
