@@ -25,10 +25,6 @@ go.work
 *.swp
 *.swo
 
-# Generated files
-*.pb.go
-*.pb.gw.go
-*.mcp.go
 
 # OS specific files
 .DS_Store
