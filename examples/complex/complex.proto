@@ -73,9 +73,6 @@ message UserProfileResponse {
 }
 
 message NestedRequest {
-  option (mcp.annotations.mcp_required_roles) = "org_admin";
-  option (mcp.annotations.mcp_access_level) = "read";
-
   string org_id = 1 [(mcp.annotations.mcp_path_param) = true];
   string team_id = 2 [(mcp.annotations.mcp_path_param) = true];
   string member_id = 3 [(mcp.annotations.mcp_path_param) = true];
@@ -134,9 +131,6 @@ message Resource {
 }
 
 message UploadRequest {
-  option (mcp.annotations.mcp_required_roles) = "content_creator";
-  option (mcp.annotations.mcp_access_level) = "write";
-
   string name = 1 [
     (mcp.annotations.mcp_validation_pattern) = "^[a-zA-Z0-9_-]{1,100}$"
   ];

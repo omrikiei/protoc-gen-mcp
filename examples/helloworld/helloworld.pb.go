@@ -171,12 +171,12 @@ var File_examples_helloworld_helloworld_proto protoreflect.FileDescriptor
 const file_examples_helloworld_helloworld_proto_rawDesc = "" +
 	"\n" +
 	"$examples/helloworld/helloworld.proto\x12\n" +
-	"helloworld\x1a'internal/protogen/mcp/annotations.proto\"\x85\x03\n" +
+	"helloworld\x1a'internal/protogen/mcp/annotations.proto\"\x9b\x03\n" +
 	"\fHelloRequest\x12\x8c\x01\n" +
 	"\x04name\x18\x01 \x01(\tBx\x80\xb5\x18\x01\x88\xb5\x18\x01\xaa\xb5\x18\x14^[a-zA-Z0-9_]{3,50}$\xb2\xb5\x18TName must be 3-50 characters long and contain only letters, numbers, and underscoresR\x04name\x12^\n" +
 	"\blanguage\x18\x02 \x01(\tBB\x88\xb5\x18\x01\xaa\xb5\x18\x0f^(en|es|fr|de)$\xb2\xb5\x18'Language must be one of: en, es, fr, deR\blanguage\x12\x1c\n" +
 	"\x06formal\x18\x03 \x01(\bB\x04\x88\xb5\x18\x01R\x06formal\x12V\n" +
-	"\x06repeat\x18\x04 \x01(\x05B>\x88\xb5\x18\x01\xaa\xb5\x18\r^[1-9][0-9]?$\xb2\xb5\x18%Repeat count must be between 1 and 99R\x06repeat:\x10\x9a\xb5\x18\x04user\xa2\xb5\x18\x04read\"\x9d\x01\n" +
+	"\x06repeat\x18\x04 \x01(\x05B>\x88\xb5\x18\x01\xaa\xb5\x18\r^[1-9][0-9]?$\xb2\xb5\x18%Repeat count must be between 1 and 99R\x06repeat:&\x92\xb5\x18\"The request to the SayHello method\"\x9d\x01\n" +
 	"\n" +
 	"HelloReply\x12\x18\n" +
 	"\amessage\x18\x01 \x01(\tR\amessage\x12%\n" +

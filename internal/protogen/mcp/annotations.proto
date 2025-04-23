@@ -62,8 +62,4 @@ extend google.protobuf.MessageOptions {
   bool mcp_resource_template_message = 50000;
   string mcp_uri_template = 50001;
   string mcp_template_description = 50002;
-  
-  // Security configuration
-  string mcp_required_roles = 50003;
-  string mcp_access_level = 50004;
 } 

@@ -42,8 +42,7 @@ service Greeter {
 
 // The request message containing the user's name.
 message HelloRequest {
-  option (mcp.annotations.mcp_required_roles) = "user";
-  option (mcp.annotations.mcp_access_level) = "read";
+  option (mcp.annotations.mcp_template_description) = "The request to the SayHello method";
 
   // The name of the person to greet
   string name = 1 [
