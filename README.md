@@ -14,7 +14,7 @@ The generated code follows the MCP specification and can be used to implement ma
 ## Installation
 
 ```bash
-go install github.com/yourusername/protoc-gen-mcp/cmd/protoc-gen-mcp
+go install github.com/omrikiei/protoc-gen-mcp/cmd/protoc-gen-mcp
 ```
 
 ## Usage
@@ -35,6 +35,105 @@ plugins:
     out: gen/go
     opt:
       - paths=source_relative
+```
+
+## MCP Annotations
+
+The plugin supports various annotations to configure MCP services, methods, and fields. Here's how to use them in your `.proto` files:
+
+### Service Level Annotations
+
+```protobuf
+service YourService {
+  option (mcp.annotations.mcp_service) = true;  // Required to enable MCP generation
+  option (mcp.annotations.mcp_version) = "v1";  // API version
+  option (mcp.annotations.mcp_type) = "your-type";  // Service type
+  option (mcp.annotations.mcp_resource_service) = true;  // Enable resource handling
+  option (mcp.annotations.mcp_resource_base_uri) = "your://";  // Base URI for resources
+  option (mcp.annotations.mcp_server_description) = "Description of your service";
+}
+```
+
+### Method Level Annotations
+
+```protobuf
+rpc YourMethod (Request) returns (Response) {
+  option (mcp.annotations.mcp_tool) = true;  // Required to enable MCP tool generation
+  option (mcp.annotations.mcp_tool_description) = "Description of the tool";
+  option (mcp.annotations.mcp_tool_title) = "Human readable title";
+  option (mcp.annotations.mcp_tool_read_only) = true;  // Tool doesn't modify environment
+  option (mcp.annotations.mcp_tool_destructive) = false;  // Tool may perform destructive updates
+  option (mcp.annotations.mcp_tool_idempotent) = true;  // Repeated calls have no additional effect
+  option (mcp.annotations.mcp_tool_open_world) = false;  // Tool interacts with external entities
+}
+```
+
+### Field Level Annotations
+
+```protobuf
+message YourMessage {
+  string field1 = 1 [
+    (mcp.annotations.mcp_path_param) = true,  // Field is a path parameter
+    (mcp.annotations.mcp_query_param) = true,  // Field is a query parameter
+    (mcp.annotations.mcp_resource_uri) = true,  // Field is a resource URI
+    (mcp.annotations.mcp_field_description) = "Description of the field",
+    (mcp.annotations.mcp_required) = true,  // Field is required
+    (mcp.annotations.mcp_validation_pattern) = "^[a-zA-Z0-9_]{3,50}$",  // Validation regex
+    (mcp.annotations.mcp_validation_message) = "Validation error message"
+  ];
+}
+```
+
+### Message Level Annotations
+
+```protobuf
+message YourMessage {
+  option (mcp.annotations.mcp_resource_template_message) = true;  // Enable resource template
+  option (mcp.annotations.mcp_uri_template) = "your://{field1}/{field2}";  // URI template
+  option (mcp.annotations.mcp_template_description) = "Description of the template";
+}
+```
+
+## Buf Configuration
+
+To use the plugin with buf, you need to configure both `buf.gen.yaml` and `buf.work.yaml`:
+
+### buf.gen.yaml
+
+```yaml
+version: v1
+plugins:
+  - name: mcp
+    out: gen/go
+    opt:
+      - paths=source_relative
+  - name: go
+    out: gen/go
+    opt:
+      - paths=source_relative
+  - name: go-grpc
+    out: gen/go
+    opt:
+      - paths=source_relative
+```
+
+### buf.work.yaml
+
+```yaml
+version: v1
+directories:
+  - proto
+  - internal/protogen/mcp
+```
+
+### buf.yaml
+
+```yaml
+version: v1
+name: buf.build/omrikiei/protoc-gen-mcp
+deps:
+  - buf.build/googleapis/googleapis
+  - buf.build/grpc-ecosystem/grpc-gateway
 ```
 
 ## Project Structure
