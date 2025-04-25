@@ -2,19 +2,18 @@ syntax = "proto3";
 
 package helloworld;
 
-import "internal/protogen/mcp/annotations.proto";
+import "protogen/mcp/annotations.proto";
 
 option go_package = "github.com/omrikiei/protoc-gen-mcp/examples/helloworld";
 
 // The greeting service definition.
 service Greeter {
-  option (mcp.annotations.mcp_service) = true;
+  option (mcp.annotations.mcp_resource_service) = true;
   option (mcp.annotations.mcp_version) = "v1";
   option (mcp.annotations.mcp_type) = "greeter";
 
   // Sends a greeting
   rpc SayHello (HelloRequest) returns (HelloReply) {
-    option (mcp.annotations.mcp_tool) = true;
     option (mcp.annotations.mcp_tool_description) = "Sends a simple greeting to the user";
     option (mcp.annotations.mcp_tool_title) = "Say Hello";
     option (mcp.annotations.mcp_tool_read_only) = true;
@@ -23,7 +22,6 @@ service Greeter {
 
   // Sends a greeting with query parameters
   rpc SayHelloWithQuery (HelloRequest) returns (HelloReply) {
-    option (mcp.annotations.mcp_tool) = true;
     option (mcp.annotations.mcp_tool_description) = "Sends a greeting with additional query parameters";
     option (mcp.annotations.mcp_tool_title) = "Say Hello with Query";
     option (mcp.annotations.mcp_tool_read_only) = true;
@@ -32,7 +30,6 @@ service Greeter {
 
   // Streams greetings
   rpc StreamGreetings (HelloRequest) returns (stream HelloReply) {
-    option (mcp.annotations.mcp_tool) = true;
     option (mcp.annotations.mcp_tool_description) = "Streams multiple greetings to the user";
     option (mcp.annotations.mcp_tool_title) = "Stream Greetings";
     option (mcp.annotations.mcp_tool_read_only) = true;

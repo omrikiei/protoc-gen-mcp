@@ -2,19 +2,18 @@ syntax = "proto3";
 
 package complex;
 
-import "internal/protogen/mcp/annotations.proto";
+import "protogen/mcp/annotations.proto";
 
 option go_package = "github.com/omrikiei/protoc-gen-mcp/examples/complex";
 
 // Complex service demonstrating advanced MCP features
 service ComplexService {
-  option (mcp.annotations.mcp_service) = true;
+  option (mcp.annotations.mcp_resource_service) = true;
   option (mcp.annotations.mcp_version) = "v1";
   option (mcp.annotations.mcp_resource_base_uri) = "complex://";
 
   // Example with multiple path parameters and resource handling
   rpc GetUserProfile (UserProfileRequest) returns (UserProfileResponse) {
-    option (mcp.annotations.mcp_tool) = true;
     option (mcp.annotations.mcp_tool_description) = "Retrieves a user's profile information";
     option (mcp.annotations.mcp_tool_title) = "Get User Profile";
     option (mcp.annotations.mcp_tool_read_only) = true;
@@ -23,7 +22,6 @@ service ComplexService {
 
   // Example with nested path parameters and streaming
   rpc GetNestedResource (NestedRequest) returns (stream NestedResponse) {
-    option (mcp.annotations.mcp_tool) = true;
     option (mcp.annotations.mcp_tool_description) = "Retrieves nested resource information";
     option (mcp.annotations.mcp_tool_title) = "Get Nested Resource";
     option (mcp.annotations.mcp_tool_read_only) = true;
@@ -32,7 +30,6 @@ service ComplexService {
 
   // Example with complex query parameters and resource listing
   rpc SearchResources (SearchRequest) returns (SearchResponse) {
-    option (mcp.annotations.mcp_tool) = true;
     option (mcp.annotations.mcp_tool_description) = "Searches for resources with complex filtering";
     option (mcp.annotations.mcp_tool_title) = "Search Resources";
     option (mcp.annotations.mcp_tool_read_only) = true;
@@ -41,7 +38,6 @@ service ComplexService {
 
   // Example with resource writing and binary data
   rpc UploadResource (UploadRequest) returns (Resource) {
-    option (mcp.annotations.mcp_tool) = true;
     option (mcp.annotations.mcp_tool_description) = "Uploads a new resource with binary content";
     option (mcp.annotations.mcp_tool_title) = "Upload Resource";
     option (mcp.annotations.mcp_tool_destructive) = true;

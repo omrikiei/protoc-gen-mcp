@@ -1,45 +1,42 @@
 syntax = "proto3";
 
-package mcp.annotations;
+package mcp;
 
 import "google/protobuf/descriptor.proto";
 
-option go_package = "github.com/omrikiei/protoc-gen-mcp/internal/protogen/mcp";
+option go_package = "github.com/omrikiei/protoc-gen-mcp/protogen/mcp";
 
 // Service level annotations
 extend google.protobuf.ServiceOptions {
   // Basic MCP service configuration
-  bool mcp_service = 50000;
-  string mcp_version = 50001;
-  string mcp_type = 50002;
+  string mcp_version = 50000;
+  string mcp_type = 50001;
 
   // Resource configuration
-  bool mcp_resource_service = 50003;
-  string mcp_resource_base_uri = 50004;
-  
+  bool mcp_resource_service = 50002;
+  string mcp_resource_base_uri = 50003;
+
   // Description
-  string mcp_server_description = 50006;
+  string mcp_server_description = 50004;
 }
 
 // Method level annotations
 extend google.protobuf.MethodOptions {
-  // Basic MCP method configuration
-  bool mcp_tool = 50000;
-  
+
   // Description
-  string mcp_tool_description = 50001;
+  string mcp_tool_description = 50000;
 
   // Tool annotations
   // Human-readable title for the tool
-  string mcp_tool_title = 50002;
+  string mcp_tool_title = 50001;
   // If true, the tool does not modify its environment
-  bool mcp_tool_read_only = 50003;
+  bool mcp_tool_read_only = 50002;
   // If true, the tool may perform destructive updates
-  bool mcp_tool_destructive = 50004;
+  bool mcp_tool_destructive = 50003;
   // If true, repeated calls with same args have no additional effect
-  bool mcp_tool_idempotent = 50005;
+  bool mcp_tool_idempotent = 50004;
   // If true, tool interacts with external entities
-  bool mcp_tool_open_world = 50006;
+  bool mcp_tool_open_world = 50005;
 }
 
 // Field level annotations
@@ -48,7 +45,7 @@ extend google.protobuf.FieldOptions {
   bool mcp_path_param = 50000;
   bool mcp_query_param = 50001;
   bool mcp_resource_uri = 50002;
-  
+
   // Field properties
   string mcp_field_description = 50003;
   bool mcp_required = 50004;
@@ -62,4 +59,4 @@ extend google.protobuf.MessageOptions {
   bool mcp_resource_template_message = 50000;
   string mcp_uri_template = 50001;
   string mcp_template_description = 50002;
-} 
+}

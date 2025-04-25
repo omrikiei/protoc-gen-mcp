@@ -23,14 +23,14 @@ clean:
 
 # Generate protobuf files for internal/protogen
 protogen:
-	mkdir -p internal/protogen/mcp
+	mkdir -p protogen/mcp
 	protoc \
 		--go_out=. \
 		--go_opt=paths=source_relative \
 		--go-grpc_out=. \
 		--go-grpc_opt=paths=source_relative \
-		internal/protogen/mcp/annotations.proto \
-		internal/protogen/mcp/service.proto
+		protogen/mcp/annotations.proto \
+		protogen/mcp/service.proto
 
 # Generate example protobuf files
 examples:
