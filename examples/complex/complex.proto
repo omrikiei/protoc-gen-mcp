@@ -1,4 +1,4 @@
-syntax = "proto3";
+ syntax = "proto3";
 
 package complex;
 
@@ -8,58 +8,43 @@ option go_package = "github.com/omrikiei/protoc-gen-mcp/examples/complex";
 
 // Complex service demonstrating advanced MCP features
 service ComplexService {
-  option (mcp.annotations.mcp_resource_service) = true;
-  option (mcp.annotations.mcp_version) = "v1";
-  option (mcp.annotations.mcp_resource_base_uri) = "complex://";
-
   // Example with multiple path parameters and resource handling
-  rpc GetUserProfile (UserProfileRequest) returns (UserProfileResponse) {
-    option (mcp.annotations.mcp_tool_description) = "Retrieves a user's profile information";
-    option (mcp.annotations.mcp_tool_title) = "Get User Profile";
-    option (mcp.annotations.mcp_tool_read_only) = true;
-    option (mcp.annotations.mcp_tool_idempotent) = true;
+  rpc GetUserProfile(UserProfileRequest) returns (UserProfileResponse) {
+    option (mcp.mcp_tool_description) = "Get user profile information";
+    option (mcp.mcp_tool_title) = "Get User Profile";
+    option (mcp.mcp_tool_read_only) = true;
   }
 
   // Example with nested path parameters and streaming
-  rpc GetNestedResource (NestedRequest) returns (stream NestedResponse) {
-    option (mcp.annotations.mcp_tool_description) = "Retrieves nested resource information";
-    option (mcp.annotations.mcp_tool_title) = "Get Nested Resource";
-    option (mcp.annotations.mcp_tool_read_only) = true;
-    option (mcp.annotations.mcp_tool_idempotent) = true;
+  rpc GetNestedResource(NestedRequest) returns (stream NestedResponse) {
+    option (mcp.mcp_tool_description) = "Get nested resource information";
+    option (mcp.mcp_tool_title) = "Get Nested Resource";
+    option (mcp.mcp_tool_read_only) = true;
   }
 
   // Example with complex query parameters and resource listing
-  rpc SearchResources (SearchRequest) returns (SearchResponse) {
-    option (mcp.annotations.mcp_tool_description) = "Searches for resources with complex filtering";
-    option (mcp.annotations.mcp_tool_title) = "Search Resources";
-    option (mcp.annotations.mcp_tool_read_only) = true;
-    option (mcp.annotations.mcp_tool_idempotent) = true;
+  rpc SearchResources(SearchRequest) returns (SearchResponse) {
+    option (mcp.mcp_tool_description) = "Search for resources with complex filtering";
+    option (mcp.mcp_tool_title) = "Search Resources";
+    option (mcp.mcp_tool_read_only) = true;
   }
 
   // Example with resource writing and binary data
-  rpc UploadResource (UploadRequest) returns (Resource) {
-    option (mcp.annotations.mcp_tool_description) = "Uploads a new resource with binary content";
-    option (mcp.annotations.mcp_tool_title) = "Upload Resource";
-    option (mcp.annotations.mcp_tool_destructive) = true;
-    option (mcp.annotations.mcp_tool_open_world) = true;
+  rpc UploadResource(UploadRequest) returns (Resource) {
+    option (mcp.mcp_tool_description) = "Upload a new resource";
+    option (mcp.mcp_tool_title) = "Upload Resource";
+    option (mcp.mcp_tool_destructive) = true;
   }
 }
 
 message UserProfileRequest {
-  string user_id = 1 [
-    (mcp.annotations.mcp_path_param) = true,
-    (mcp.annotations.mcp_validation_pattern) = "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
-  ];
-  string profile_id = 2;
-  bool include_details = 3 ;
-  int32 max_depth = 4;
+  string user_id = 1 [(mcp.mcp_path_param) = true];
+  string profile_id = 2 [(mcp.mcp_path_param) = true];
+  bool include_details = 3 [(mcp.mcp_query_param) = true];
+  int32 max_depth = 4 [(mcp.mcp_query_param) = true];
 }
 
 message UserProfileResponse {
-  option (mcp.annotations.mcp_resource_template_message) = true;
-  option (mcp.annotations.mcp_uri_template) = "complex://users/{user_id}/profiles/{profile_id}";
-  option (mcp.annotations.mcp_template_description) = "User profile resource template";
-
   string user_id = 1;
   string profile_id = 2;
   string name = 3;
@@ -69,16 +54,13 @@ message UserProfileResponse {
 }
 
 message NestedRequest {
-  string org_id = 1 [(mcp.annotations.mcp_path_param) = true];
-  string team_id = 2 [(mcp.annotations.mcp_path_param) = true];
-  string member_id = 3 [(mcp.annotations.mcp_path_param) = true];
-  bool recursive = 4 [(mcp.annotations.mcp_query_param) = true];
+  string org_id = 1 [(mcp.mcp_path_param) = true];
+  string team_id = 2 [(mcp.mcp_path_param) = true];
+  string member_id = 3 [(mcp.mcp_path_param) = true];
+  bool recursive = 4 [(mcp.mcp_query_param) = true];
 }
 
 message NestedResponse {
-  option (mcp.annotations.mcp_resource_template_message) = true;
-  option (mcp.annotations.mcp_uri_template) = "complex://orgs/{org_id}/teams/{team_id}/members/{member_id}";
-
   string org_id = 1;
   string team_id = 2;
   string member_id = 3;
@@ -88,19 +70,13 @@ message NestedResponse {
 }
 
 message SearchRequest {
-  string query = 1 [(mcp.annotations.mcp_query_param) = true];
-  int32 page = 2 [
-    (mcp.annotations.mcp_query_param) = true,
-    (mcp.annotations.mcp_validation_pattern) = "^[1-9][0-9]*$"
-  ];
-  int32 page_size = 3 [
-    (mcp.annotations.mcp_query_param) = true,
-    (mcp.annotations.mcp_validation_pattern) = "^[1-9][0-9]*$"
-  ];
-  repeated string filters = 4 [(mcp.annotations.mcp_query_param) = true];
-  bool include_deleted = 5 [(mcp.annotations.mcp_query_param) = true];
-  string sort_by = 6 [(mcp.annotations.mcp_query_param) = true];
-  bool sort_desc = 7 [(mcp.annotations.mcp_query_param) = true];
+  string query = 1 [(mcp.mcp_query_param) = true];
+  int32 page = 2 [(mcp.mcp_query_param) = true];
+  int32 page_size = 3 [(mcp.mcp_query_param) = true];
+  repeated string filters = 4 [(mcp.mcp_query_param) = true];
+  bool include_deleted = 5 [(mcp.mcp_query_param) = true];
+  string sort_by = 6 [(mcp.mcp_query_param) = true];
+  bool sort_desc = 7 [(mcp.mcp_query_param) = true];
 }
 
 message SearchResponse {
@@ -112,11 +88,7 @@ message SearchResponse {
 }
 
 message Resource {
-  option (mcp.annotations.mcp_resource_template_message) = true;
-  option (mcp.annotations.mcp_uri_template) = "complex://resources/{id}";
-  option (mcp.annotations.mcp_template_description) = "Generic resource template";
-
-  string id = 1 [(mcp.annotations.mcp_resource_uri) = true];
+  string id = 1;
   string name = 2;
   string type = 3;
   map<string, string> metadata = 4;
@@ -127,10 +99,8 @@ message Resource {
 }
 
 message UploadRequest {
-  string name = 1 [
-    (mcp.annotations.mcp_validation_pattern) = "^[a-zA-Z0-9_-]{1,100}$"
-  ];
-  string type = 2;
+  string name = 1 [(mcp.mcp_required) = true];
+  string type = 2 [(mcp.mcp_required) = true];
   map<string, string> metadata = 3;
-  bytes content = 4;
-} 
+  bytes content = 4 [(mcp.mcp_required) = true];
+}

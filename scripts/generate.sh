@@ -16,6 +16,7 @@ protoc \
 
 # Generate Go code for the example
 protoc \
+  -I. \
   --go_out=. \
   --go_opt=paths=source_relative \
   --go-grpc_out=. \

@@ -3,7 +3,7 @@ package generator
 import (
 	"fmt"
 
-	"github.com/omrikiei/protoc-gen-mcp/internal/protogen/mcp"
+	"github.com/omrikiei/protoc-gen-mcp/protogen/mcp"
 	"google.golang.org/protobuf/compiler/protogen"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
