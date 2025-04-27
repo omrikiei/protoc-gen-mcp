@@ -31,8 +31,9 @@ protoc --mcp_out=. --mcp_opt=paths=source_relative your_service.proto
 # buf.gen.yaml
 version: v1
 plugins:
-  - name: mcp
-    out: gen/go
+  - plugin: mcp
+    path: protoc-gen-mcp
+    out: .
     opt:
       - paths=source_relative
 ```
