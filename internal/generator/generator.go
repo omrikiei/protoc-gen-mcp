@@ -98,7 +98,7 @@ func generateService(g *protogen.GeneratedFile, service *protogen.Service, file 
 	g.P("// ", service.GoName, "MCPServerImpl implements the MCP server for ", service.GoName, " service.")
 	g.P("type ", service.GoName, "MCPServerImpl struct {")
 	g.P("	server ", service.GoName, "MCPServer")
-	g.P("	mcpServer *server.MCPServer")
+	g.P("	MCPServer *server.MCPServer")
 	g.P("}")
 	g.P()
 
@@ -107,7 +107,7 @@ func generateService(g *protogen.GeneratedFile, service *protogen.Service, file 
 	g.P("func New", service.GoName, "MCPServer(srv ", service.GoName, "MCPServer) *", service.GoName, "MCPServerImpl {")
 	g.P("	s := &", service.GoName, "MCPServerImpl{")
 	g.P("		server: srv,")
-	g.P("		mcpServer: server.NewMCPServer(")
+	g.P("		MCPServer: server.NewMCPServer(")
 	g.P("			\"", service.GoName, "\",")
 	g.P("			\"", mcpVersion, "\",")
 	g.P("		),")
@@ -117,7 +117,7 @@ func generateService(g *protogen.GeneratedFile, service *protogen.Service, file 
 	for _, method := range service.Methods {
 		// Register input message as resource
 		g.P("	// Register ", method.Input.GoIdent, " as resource")
-		g.P("	s.mcpServer.AddResource(mcp.Resource{")
+		g.P("	s.MCPServer.AddResource(mcp.Resource{")
 		g.P("		URI: \"", method.Input.GoIdent, "\",")
 		g.P("		Name: \"", method.Input.GoIdent, "\",")
 		g.P("		Description: \"Request message for ", method.GoName, " method\",")
@@ -142,7 +142,7 @@ func generateService(g *protogen.GeneratedFile, service *protogen.Service, file 
 
 		// Register output message as resource
 		g.P("	// Register ", method.Output.GoIdent, " as resource")
-		g.P("	s.mcpServer.AddResource(mcp.Resource{")
+		g.P("	s.MCPServer.AddResource(mcp.Resource{")
 		g.P("		URI: \"", method.Output.GoIdent, "\",")
 		g.P("		Name: \"", method.Output.GoIdent, "\",")
 		g.P("		Description: \"Response message for ", method.GoName, " method\",")
@@ -179,7 +179,7 @@ func generateService(g *protogen.GeneratedFile, service *protogen.Service, file 
 	// Generate method to start the server
 	g.P("// Start starts the MCP server")
 	g.P("func (s *", service.GoName, "MCPServerImpl) Start() error {")
-	g.P("	return server.ServeStdio(s.mcpServer)")
+	g.P("	return server.ServeStdio(s.MCPServer)")
 	g.P("}")
 	g.P()
 
@@ -384,7 +384,7 @@ func generateMethodTool(g *protogen.GeneratedFile, service *protogen.Service, me
 	// Generate handler function
 	g.P()
 	g.P("	// Add tool handler")
-	g.P("	s.mcpServer.AddTool(tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {")
+	g.P("	s.MCPServer.AddTool(tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {")
 	g.P("		// Create input message")
 	g.P("		req := &", method.Input.GoIdent, "{}")
 

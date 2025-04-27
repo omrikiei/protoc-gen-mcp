@@ -23,14 +23,14 @@ type GreeterMCPServer interface {
 // GreeterMCPServerImpl implements the MCP server for Greeter service.
 type GreeterMCPServerImpl struct {
 	server    GreeterMCPServer
-	mcpServer *server.MCPServer
+	MCPServer *server.MCPServer
 }
 
 // NewGreeterMCPServer creates a new MCP server for Greeter service.
 func NewGreeterMCPServer(srv GreeterMCPServer) *GreeterMCPServerImpl {
 	s := &GreeterMCPServerImpl{
 		server: srv,
-		mcpServer: server.NewMCPServer(
+		MCPServer: server.NewMCPServer(
 			"Greeter",
 			"v1",
 		),
@@ -38,7 +38,7 @@ func NewGreeterMCPServer(srv GreeterMCPServer) *GreeterMCPServerImpl {
 
 	// Register resources for request and response messages
 	// Register HelloRequest as resource
-	s.mcpServer.AddResource(mcp.Resource{
+	s.MCPServer.AddResource(mcp.Resource{
 		URI:         "HelloRequest",
 		Name:        "HelloRequest",
 		Description: "Request message for SayHello method",
@@ -61,7 +61,7 @@ func NewGreeterMCPServer(srv GreeterMCPServer) *GreeterMCPServerImpl {
 	})
 
 	// Register HelloReply as resource
-	s.mcpServer.AddResource(mcp.Resource{
+	s.MCPServer.AddResource(mcp.Resource{
 		URI:         "HelloReply",
 		Name:        "HelloReply",
 		Description: "Response message for SayHello method",
@@ -84,7 +84,7 @@ func NewGreeterMCPServer(srv GreeterMCPServer) *GreeterMCPServerImpl {
 	})
 
 	// Register HelloRequest as resource
-	s.mcpServer.AddResource(mcp.Resource{
+	s.MCPServer.AddResource(mcp.Resource{
 		URI:         "HelloRequest",
 		Name:        "HelloRequest",
 		Description: "Request message for SayHelloWithQuery method",
@@ -107,7 +107,7 @@ func NewGreeterMCPServer(srv GreeterMCPServer) *GreeterMCPServerImpl {
 	})
 
 	// Register HelloReply as resource
-	s.mcpServer.AddResource(mcp.Resource{
+	s.MCPServer.AddResource(mcp.Resource{
 		URI:         "HelloReply",
 		Name:        "HelloReply",
 		Description: "Response message for SayHelloWithQuery method",
@@ -130,7 +130,7 @@ func NewGreeterMCPServer(srv GreeterMCPServer) *GreeterMCPServerImpl {
 	})
 
 	// Register HelloRequest as resource
-	s.mcpServer.AddResource(mcp.Resource{
+	s.MCPServer.AddResource(mcp.Resource{
 		URI:         "HelloRequest",
 		Name:        "HelloRequest",
 		Description: "Request message for StreamGreetings method",
@@ -153,7 +153,7 @@ func NewGreeterMCPServer(srv GreeterMCPServer) *GreeterMCPServerImpl {
 	})
 
 	// Register HelloReply as resource
-	s.mcpServer.AddResource(mcp.Resource{
+	s.MCPServer.AddResource(mcp.Resource{
 		URI:         "HelloReply",
 		Name:        "HelloReply",
 		Description: "Response message for StreamGreetings method",
@@ -197,7 +197,7 @@ func NewGreeterMCPServer(srv GreeterMCPServer) *GreeterMCPServerImpl {
 	)
 
 	// Add tool handler
-	s.mcpServer.AddTool(tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	s.MCPServer.AddTool(tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		// Create input message
 		req := &HelloRequest{}
 		if val, ok := request.Params.Arguments["Name"]; ok {
@@ -260,7 +260,7 @@ func NewGreeterMCPServer(srv GreeterMCPServer) *GreeterMCPServerImpl {
 	)
 
 	// Add tool handler
-	s.mcpServer.AddTool(tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	s.MCPServer.AddTool(tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		// Create input message
 		req := &HelloRequest{}
 		if val, ok := request.Params.Arguments["Name"]; ok {
@@ -323,7 +323,7 @@ func NewGreeterMCPServer(srv GreeterMCPServer) *GreeterMCPServerImpl {
 	)
 
 	// Add tool handler
-	s.mcpServer.AddTool(tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	s.MCPServer.AddTool(tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		// Create input message
 		req := &HelloRequest{}
 		if val, ok := request.Params.Arguments["Name"]; ok {
@@ -370,7 +370,7 @@ func NewGreeterMCPServer(srv GreeterMCPServer) *GreeterMCPServerImpl {
 
 // Start starts the MCP server
 func (s *GreeterMCPServerImpl) Start() error {
-	return server.ServeStdio(s.mcpServer)
+	return server.ServeStdio(s.MCPServer)
 }
 
 // convertParamsToMessage converts MCP parameters to message fields
