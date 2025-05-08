@@ -103,6 +103,8 @@ func generateService(g *protogen.GeneratedFile, service *protogen.Service, file 
 	g.P("type ", service.GoName, "MCPServerImpl struct {")
 	g.P("	server ", service.GoName, "MCPServer")
 	g.P("	MCPServer *server.MCPServer")
+	g.P("	tools []mcp.Tool")
+	g.P("	resources []mcp.Resource")
 	g.P("}")
 	g.P()
 
@@ -115,18 +117,28 @@ func generateService(g *protogen.GeneratedFile, service *protogen.Service, file 
 	g.P("			\"", service.GoName, "\",")
 	g.P("			\"", mcpVersion, "\",")
 	g.P("		),")
+	g.P("		tools: make([]mcp.Tool, 0),")
+	g.P("		resources: make([]mcp.Resource, 0),")
 	g.P("	}")
 	g.P()
 	g.P("	// Register resources for request and response messages")
+	firstResource := true
 	for _, method := range service.Methods {
 		// Register input message as resource
 		g.P("	// Register ", method.Input.GoIdent, " as resource")
-		g.P("	s.MCPServer.AddResource(mcp.Resource{")
+		if firstResource {
+			g.P("	resource := mcp.Resource{")
+			firstResource = false
+		} else {
+			g.P("	resource = mcp.Resource{")
+		}
 		g.P("		URI: \"", method.Input.GoIdent, "\",")
 		g.P("		Name: \"", method.Input.GoIdent, "\",")
 		g.P("		Description: \"Request message for ", method.GoName, " method\",")
 		g.P("		MIMEType: \"application/json\",")
-		g.P("	}, func(ctx context.Context, request mcp.ReadResourceRequest) ([]mcp.ResourceContents, error) {")
+		g.P("	}")
+		g.P("	s.resources = append(s.resources, resource)")
+		g.P("	s.MCPServer.AddResource(resource, func(ctx context.Context, request mcp.ReadResourceRequest) ([]mcp.ResourceContents, error) {")
 		g.P("		// Create a new instance of the request message")
 		g.P("		req := &", method.Input.GoIdent, "{}")
 		g.P("		// Convert request parameters to message fields")
@@ -146,12 +158,14 @@ func generateService(g *protogen.GeneratedFile, service *protogen.Service, file 
 
 		// Register output message as resource
 		g.P("	// Register ", method.Output.GoIdent, " as resource")
-		g.P("	s.MCPServer.AddResource(mcp.Resource{")
+		g.P("	resource = mcp.Resource{")
 		g.P("		URI: \"", method.Output.GoIdent, "\",")
 		g.P("		Name: \"", method.Output.GoIdent, "\",")
 		g.P("		Description: \"Response message for ", method.GoName, " method\",")
 		g.P("		MIMEType: \"application/json\",")
-		g.P("	}, func(ctx context.Context, request mcp.ReadResourceRequest) ([]mcp.ResourceContents, error) {")
+		g.P("	}")
+		g.P("	s.resources = append(s.resources, resource)")
+		g.P("	s.MCPServer.AddResource(resource, func(ctx context.Context, request mcp.ReadResourceRequest) ([]mcp.ResourceContents, error) {")
 		g.P("		// Create a new instance of the response message")
 		g.P("		resp := &", method.Output.GoIdent, "{}")
 		g.P("		// Convert request parameters to message fields")
@@ -189,6 +203,19 @@ func generateService(g *protogen.GeneratedFile, service *protogen.Service, file 
 	g.P("// Start starts the MCP server")
 	g.P("func (s *", service.GoName, "MCPServerImpl) Start() error {")
 	g.P("	return server.ServeStdio(s.MCPServer)")
+	g.P("}")
+	g.P()
+
+	// Add getter methods after the Start method
+	g.P("// Tools returns all registered tools")
+	g.P("func (s *", service.GoName, "MCPServerImpl) Tools() []mcp.Tool {")
+	g.P("	return s.tools")
+	g.P("}")
+	g.P()
+
+	g.P("// Resources returns all registered resources")
+	g.P("func (s *", service.GoName, "MCPServerImpl) Resources() []mcp.Resource {")
+	g.P("\treturn s.resources")
 	g.P("}")
 	g.P()
 
@@ -389,6 +416,9 @@ func generateMethodTool(g *protogen.GeneratedFile, service *protogen.Service, me
 		}
 	}
 	g.P("	)")
+	g.P()
+	g.P("	s.tools = append(s.tools, tool)")
+	g.P()
 
 	// Generate handler function
 	g.P()
