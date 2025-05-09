@@ -9,6 +9,85 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
+// Map of well-known protobuf types to their Go import paths and package names
+var wellKnownTypes = map[string]struct {
+	importPath string
+	pkgName    string
+}{
+	"google.protobuf.FieldMask": {
+		importPath: "google.golang.org/protobuf/types/known/fieldmaskpb",
+		pkgName:    "fieldmaskpb",
+	},
+	"google.protobuf.Timestamp": {
+		importPath: "google.golang.org/protobuf/types/known/timestamppb",
+		pkgName:    "timestamppb",
+	},
+	"google.protobuf.Duration": {
+		importPath: "google.golang.org/protobuf/types/known/durationpb",
+		pkgName:    "durationpb",
+	},
+	"google.protobuf.Empty": {
+		importPath: "google.golang.org/protobuf/types/known/emptypb",
+		pkgName:    "emptypb",
+	},
+	"google.protobuf.Any": {
+		importPath: "google.golang.org/protobuf/types/known/anypb",
+		pkgName:    "anypb",
+	},
+	"google.protobuf.Struct": {
+		importPath: "google.golang.org/protobuf/types/known/structpb",
+		pkgName:    "structpb",
+	},
+	"google.protobuf.Value": {
+		importPath: "google.golang.org/protobuf/types/known/structpb",
+		pkgName:    "structpb",
+	},
+	"google.protobuf.ListValue": {
+		importPath: "google.golang.org/protobuf/types/known/structpb",
+		pkgName:    "structpb",
+	},
+	"google.protobuf.NullValue": {
+		importPath: "google.golang.org/protobuf/types/known/structpb",
+		pkgName:    "structpb",
+	},
+	"google.protobuf.BoolValue": {
+		importPath: "google.golang.org/protobuf/types/known/wrapperspb",
+		pkgName:    "wrapperspb",
+	},
+	"google.protobuf.Int32Value": {
+		importPath: "google.golang.org/protobuf/types/known/wrapperspb",
+		pkgName:    "wrapperspb",
+	},
+	"google.protobuf.Int64Value": {
+		importPath: "google.golang.org/protobuf/types/known/wrapperspb",
+		pkgName:    "wrapperspb",
+	},
+	"google.protobuf.UInt32Value": {
+		importPath: "google.golang.org/protobuf/types/known/wrapperspb",
+		pkgName:    "wrapperspb",
+	},
+	"google.protobuf.UInt64Value": {
+		importPath: "google.golang.org/protobuf/types/known/wrapperspb",
+		pkgName:    "wrapperspb",
+	},
+	"google.protobuf.FloatValue": {
+		importPath: "google.golang.org/protobuf/types/known/wrapperspb",
+		pkgName:    "wrapperspb",
+	},
+	"google.protobuf.DoubleValue": {
+		importPath: "google.golang.org/protobuf/types/known/wrapperspb",
+		pkgName:    "wrapperspb",
+	},
+	"google.protobuf.StringValue": {
+		importPath: "google.golang.org/protobuf/types/known/wrapperspb",
+		pkgName:    "wrapperspb",
+	},
+	"google.protobuf.BytesValue": {
+		importPath: "google.golang.org/protobuf/types/known/wrapperspb",
+		pkgName:    "wrapperspb",
+	},
+}
+
 // GenerateFile generates the MCP server code for a proto file.
 func GenerateFile(gen *protogen.Plugin, file *protogen.File) error {
 	if len(file.Services) == 0 {
@@ -83,6 +162,9 @@ func GenerateFile(gen *protogen.Plugin, file *protogen.File) error {
 }
 
 func generateService(g *protogen.GeneratedFile, service *protogen.Service, file *protogen.File) error {
+	// Track packages we need to import
+	importedPackages := make(map[string]string)
+
 	// Check if this is an MCP service by looking for mcp_version
 	mcpVersion, ok := proto.GetExtension(service.Desc.Options(), mcp.E_McpVersion).(string)
 	if !ok || mcpVersion == "" {
@@ -206,10 +288,10 @@ func generateService(g *protogen.GeneratedFile, service *protogen.Service, file 
 		g.P()
 	}
 
-	g.P("	// Register tools for each method")
+	// Generate tools for each method
 	var hasCreatedTool bool
 	for _, method := range service.Methods {
-		created, err := generateMethodTool(g, service, method, hasCreatedTool)
+		created, err := generateMethodTool(g, service, method, hasCreatedTool, string(file.GoPackageName), importedPackages)
 		if err != nil {
 			return err
 		}
@@ -356,25 +438,29 @@ func generateService(g *protogen.GeneratedFile, service *protogen.Service, file 
 	g.P("						if boolVal, ok := v.(bool); ok {")
 	g.P("							slice.Index(j).SetBool(boolVal)")
 	g.P("						}")
-	g.P("					case reflect.Struct:")
+	g.P("					case reflect.Ptr:")
 	g.P("						if mapVal, ok := v.(map[string]interface{}); ok {")
-	g.P("							nestedMsg := reflect.New(field.Type().Elem()).Interface()")
-	g.P("							if err := convertParamsToMessage(mapVal, nestedMsg); err != nil {")
-	g.P("								return fmt.Errorf(\"failed to convert nested message: %v\", err)")
+	g.P("							// Create a new instance of the nested message")
+	g.P("							nestedMsg := reflect.New(field.Type().Elem().Elem())")
+	g.P("							// Convert nested message fields")
+	g.P("							if err := convertParamsToMessage(mapVal, nestedMsg.Interface()); err != nil {")
+	g.P("								return fmt.Errorf(\"failed to convert nested message at index %d: %v\", j, err)")
 	g.P("							}")
-	g.P("							slice.Index(j).Set(reflect.ValueOf(nestedMsg).Elem())")
+	g.P("							slice.Index(j).Set(nestedMsg)")
 	g.P("						}")
 	g.P("					}")
 	g.P("				}")
 	g.P("				field.Set(slice)")
 	g.P("			}")
-	g.P("		case reflect.Struct:")
+	g.P("		case reflect.Ptr:")
 	g.P("			if mapVal, ok := paramVal.(map[string]interface{}); ok {")
-	g.P("				nestedMsg := reflect.New(field.Type()).Interface()")
-	g.P("				if err := convertParamsToMessage(mapVal, nestedMsg); err != nil {")
+	g.P("				// Create a new instance of the nested message")
+	g.P("				nestedMsg := reflect.New(field.Type().Elem())")
+	g.P("				// Convert nested message fields")
+	g.P("				if err := convertParamsToMessage(mapVal, nestedMsg.Interface()); err != nil {")
 	g.P("					return fmt.Errorf(\"failed to convert nested message: %v\", err)")
 	g.P("				}")
-	g.P("				field.Set(reflect.ValueOf(nestedMsg).Elem())")
+	g.P("				field.Set(nestedMsg)")
 	g.P("			}")
 	g.P("		case reflect.Map:")
 	g.P("			if mapVal, ok := paramVal.(map[string]interface{}); ok {")
@@ -399,13 +485,15 @@ func generateService(g *protogen.GeneratedFile, service *protogen.Service, file 
 	g.P("						if boolVal, ok := v.(bool); ok {")
 	g.P("							value = reflect.ValueOf(boolVal)")
 	g.P("						}")
-	g.P("					case reflect.Struct:")
+	g.P("					case reflect.Ptr:")
 	g.P("						if mapVal, ok := v.(map[string]interface{}); ok {")
-	g.P("							nestedMsg := reflect.New(field.Type().Elem()).Interface()")
-	g.P("							if err := convertParamsToMessage(mapVal, nestedMsg); err != nil {")
-	g.P("								return fmt.Errorf(\"failed to convert nested message: %v\", err)")
+	g.P("							// Create a new instance of the nested message")
+	g.P("							nestedMsg := reflect.New(field.Type().Elem().Elem())")
+	g.P("							// Convert nested message fields")
+	g.P("							if err := convertParamsToMessage(mapVal, nestedMsg.Interface()); err != nil {")
+	g.P("								return fmt.Errorf(\"failed to convert nested message in map: %v\", err)")
 	g.P("							}")
-	g.P("							value = reflect.ValueOf(nestedMsg).Elem()")
+	g.P("							value = nestedMsg")
 	g.P("						}")
 	g.P("					}")
 	g.P("					if value.IsValid() {")
@@ -421,15 +509,23 @@ func generateService(g *protogen.GeneratedFile, service *protogen.Service, file 
 	g.P("}")
 	g.P()
 
+	// Add imports for any packages we used
+	for importPath := range importedPackages {
+		g.QualifiedGoIdent(protogen.GoIdent{
+			GoImportPath: protogen.GoImportPath(importPath),
+		})
+	}
+
 	return nil
 }
 
-func generateMethodTool(g *protogen.GeneratedFile, service *protogen.Service, method *protogen.Method, hasCreatedTool bool) (bool, error) {
+func generateMethodTool(g *protogen.GeneratedFile, service *protogen.Service, method *protogen.Method, hasCreatedTool bool, currentPkg string, importedPackages map[string]string) (bool, error) {
 	// Check if this is an MCP method by looking for mcp_tool_description
 	mcpDescription, ok := proto.GetExtension(method.Desc.Options(), mcp.E_McpToolDescription).(string)
 	if !ok || mcpDescription == "" {
 		return false, nil
 	}
+
 
 	// Get MCP method options
 	mcpTitle := proto.GetExtension(method.Desc.Options(), mcp.E_McpToolTitle).(string)
@@ -534,8 +630,16 @@ func generateMethodTool(g *protogen.GeneratedFile, service *protogen.Service, me
 					g.P("			mcp.Description(\"", fieldDesc, "\"),")
 				}
 				g.P("		),")
+			} else if field.Desc.IsList() {
+				g.P("		mcp.WithArray(\"", field.GoName, "\",")
+				if isRequired {
+					g.P("			mcp.Required(),")
+				}
+				if fieldDesc != "" {
+					g.P("			mcp.Description(\"", fieldDesc, "\"),")
+				}
+				g.P("		),")
 			} else {
-				// Handle nested message
 				g.P("		mcp.WithObject(\"", field.GoName, "\",")
 				if isRequired {
 					g.P("			mcp.Required(),")
@@ -629,7 +733,7 @@ func generateMethodTool(g *protogen.GeneratedFile, service *protogen.Service, me
 				g.P("					req.", field.GoName, " = make([]", getTypeName(field.Desc.Kind()), ", len(arrVal))")
 				g.P("					for i, v := range arrVal {")
 				g.P("						if numVal, ok := v.(float64); ok {")
-				g.P("							req.", field.GoName, "[i] = ", getTypeConversion(field.Desc.Kind(), "numVal"))
+				g.P("							req.", field.GoName, "[i] = ", getTypeConversion(field.Desc.Kind(), "int64(numVal)"))
 				g.P("						} else {")
 				g.P("							return nil, fmt.Errorf(\"", field.GoName, " must be an array of numbers\")")
 				g.P("						}")
@@ -639,7 +743,7 @@ func generateMethodTool(g *protogen.GeneratedFile, service *protogen.Service, me
 				g.P("				}")
 			} else {
 				g.P("				if numVal, ok := val.(float64); ok {")
-				g.P("					req.", field.GoName, " = ", getTypeConversion(field.Desc.Kind(), "numVal"))
+				g.P("					req.", field.GoName, " = ", getTypeConversion(field.Desc.Kind(), "int64(numVal)"))
 				g.P("				} else {")
 				g.P("					return nil, fmt.Errorf(\"", field.GoName, " must be a number\")")
 				g.P("				}")
@@ -668,15 +772,35 @@ func generateMethodTool(g *protogen.GeneratedFile, service *protogen.Service, me
 		case protoreflect.MessageKind:
 			if field.Desc.IsMap() {
 				g.P("				if mapVal, ok := val.(map[string]interface{}); ok {")
-				g.P("					req.", field.GoName, " = make(map[string]", getMapValueType(field.Desc.MapValue().Kind()), ")")
+				g.P("					req.", field.GoName, " = make(map[string]", getMapValueType(field, service, importedPackages), ")")
 				g.P("					for k, v := range mapVal {")
-				g.P("						", getMapValueConversion(field.Desc.MapValue().Kind(), "v", "req."+field.GoName+"[k]"))
+				g.P("						var value ", getMapValueType(field, service, importedPackages))
+				g.P("						", getMapValueConversion(field, "v", "value", service, currentPkg, importedPackages))
+				g.P("						req.", field.GoName, "[k] = value")
 				g.P("					}")
 				g.P("				} else {")
 				g.P("					return nil, fmt.Errorf(\"", field.GoName, " must be a map\")")
 				g.P("				}")
+			} else if field.Desc.IsList() {
+				g.P("				if arrVal, ok := val.([]interface{}); ok {")
+				g.P("					req.", field.GoName, " = make([]*", field.Message.GoIdent, ", len(arrVal))")
+				g.P("					for i, v := range arrVal {")
+				g.P("						if msgVal, ok := v.(map[string]interface{}); ok {")
+				g.P("							// Create a new instance of the nested message")
+				g.P("							nestedMsg := &", field.Message.GoIdent, "{}")
+				g.P("							// Convert nested message fields")
+				g.P("							if err := convertParamsToMessage(msgVal, nestedMsg); err != nil {")
+				g.P("								return nil, fmt.Errorf(\"failed to convert nested message at index %d: %v\", i, err)")
+				g.P("							}")
+				g.P("							req.", field.GoName, "[i] = nestedMsg")
+				g.P("						} else {")
+				g.P("							return nil, fmt.Errorf(\"", field.GoName, " must be an array of messages\")")
+				g.P("						}")
+				g.P("					}")
+				g.P("				} else {")
+				g.P("					return nil, fmt.Errorf(\"", field.GoName, " must be an array of messages\")")
+				g.P("				}")
 			} else {
-				// Handle nested message
 				g.P("				if msgVal, ok := val.(map[string]interface{}); ok {")
 				g.P("					// Create a new instance of the nested message")
 				g.P("					nestedMsg := &", field.Message.GoIdent, "{}")
@@ -780,8 +904,8 @@ func getTypeName(kind protoreflect.Kind) string {
 	}
 }
 
-func getMapValueType(kind protoreflect.Kind) string {
-	switch kind {
+func getMapValueType(field *protogen.Field, service *protogen.Service, importedPackages map[string]string) string {
+	switch field.Desc.MapValue().Kind() {
 	case protoreflect.StringKind:
 		return "string"
 	case protoreflect.Int32Kind:
@@ -796,13 +920,31 @@ func getMapValueType(kind protoreflect.Kind) string {
 		return "bool"
 	case protoreflect.BytesKind:
 		return "[]byte"
+	case protoreflect.MessageKind:
+		// Get the message type from the map value
+		mapValue := field.Desc.MapValue()
+		// Get the message descriptor
+		msgDesc := mapValue.Message()
+		// Get the full name of the message
+		fullProtoName := string(msgDesc.FullName())
+
+		// Check if this is a well-known type
+		if wellKnownType, ok := wellKnownTypes[fullProtoName]; ok {
+			// Track the package for import
+			importedPackages[wellKnownType.importPath] = wellKnownType.importPath
+			return "*" + wellKnownType.pkgName + "." + string(msgDesc.Name())
+		}
+
+		// For regular protobuf messages, just return the name without package
+		// The protogen package will handle the correct package name
+		return "*" + string(msgDesc.Name())
 	default:
 		return "string"
 	}
 }
 
-func getMapValueConversion(kind protoreflect.Kind, valueVar, targetVar string) string {
-	switch kind {
+func getMapValueConversion(field *protogen.Field, valueVar, targetVar string, service *protogen.Service, currentPkg string, importedPackages map[string]string) string {
+	switch field.Desc.MapValue().Kind() {
 	case protoreflect.StringKind:
 		return fmt.Sprintf("if strVal, ok := %s.(string); ok {\n\t\t\t\t%s = strVal\n\t\t\t} else {\n\t\t\t\treturn nil, fmt.Errorf(\"map value must be a string\")\n\t\t\t}", valueVar, targetVar)
 	case protoreflect.Int32Kind:
@@ -817,7 +959,42 @@ func getMapValueConversion(kind protoreflect.Kind, valueVar, targetVar string) s
 		return fmt.Sprintf("if boolVal, ok := %s.(bool); ok {\n\t\t\t\t%s = boolVal\n\t\t\t} else {\n\t\t\t\treturn nil, fmt.Errorf(\"map value must be a boolean\")\n\t\t\t}", valueVar, targetVar)
 	case protoreflect.BytesKind:
 		return fmt.Sprintf("if strVal, ok := %s.(string); ok {\n\t\t\t\t%s = []byte(strVal)\n\t\t\t} else {\n\t\t\t\treturn nil, fmt.Errorf(\"map value must be a string\")\n\t\t\t}", valueVar, targetVar)
+	case protoreflect.MessageKind:
+		// Get the message type from the map value
+		mapValue := field.Desc.MapValue()
+		// Get the message descriptor
+		msgDesc := mapValue.Message()
+		// Get the full name of the message
+		fullProtoName := string(msgDesc.FullName())
+
+		// Check if this is a well-known type
+		if wellKnownType, ok := wellKnownTypes[fullProtoName]; ok {
+			return fmt.Sprintf("if msgVal, ok := %s.(map[string]interface{}); ok {\n\t\t\t\t// Create a new instance of the nested message\n\t\t\t\tnestedMsg := %s.%s{}\n\t\t\t\t// Convert nested message fields\n\t\t\t\tif err := convertParamsToMessage(msgVal, nestedMsg); err != nil {\n\t\t\t\t\treturn nil, fmt.Errorf(\"failed to convert nested message in map: %%v\", err)\n\t\t\t\t}\n\t\t\t\t%s = nestedMsg\n\t\t\t} else {\n\t\t\t\treturn nil, fmt.Errorf(\"map value must be a message\")\n\t\t\t}", valueVar, wellKnownType.pkgName, string(msgDesc.Name()), targetVar)
+		}
+
+		// For regular protobuf messages, just return the name without package
+		// The protogen package will handle the correct package name
+		fullName := string(msgDesc.Name())
+		if string(service.Desc.ParentFile().Package().Name()) != string(service.Desc.ParentFile().Package().Name()) {
+			fullName = string(service.Desc.ParentFile().Package().Name()) + "." + string(msgDesc.Name())
+		}
+		return fmt.Sprintf("if msgVal, ok := %s.(map[string]interface{}); ok {\n\t\t\t\t// Create a new instance of the nested message\n\t\t\t\tnestedMsg := %s{}\n\t\t\t\t// Convert nested message fields\n\t\t\t\tif err := convertParamsToMessage(msgVal, nestedMsg); err != nil {\n\t\t\t\t\treturn nil, fmt.Errorf(\"failed to convert nested message in map: %%v\", err)\n\t\t\t\t}\n\t\t\t\t%s = nestedMsg\n\t\t\t} else {\n\t\t\t\treturn nil, fmt.Errorf(\"map value must be a message\")\n\t\t\t}", valueVar, fullName, targetVar)
 	default:
 		return fmt.Sprintf("if strVal, ok := %s.(string); ok {\n\t\t\t\t%s = strVal\n\t\t\t} else {\n\t\t\t\treturn nil, fmt.Errorf(\"map value must be a string\")\n\t\t\t}", valueVar, targetVar)
 	}
+}
+
+func getPointerTypeName(msgDesc protoreflect.MessageDescriptor, currentPkg string, importedPackages map[string]string) string {
+	// Get the full name of the message
+	fullProtoName := string(msgDesc.FullName())
+
+	// Well-known types
+	if wellKnownType, ok := wellKnownTypes[fullProtoName]; ok {
+		importedPackages[wellKnownType.importPath] = wellKnownType.importPath
+		return "&" + wellKnownType.pkgName + "." + string(msgDesc.Name()) + "{}"
+	}
+
+	// For regular protobuf messages, just return the name without package
+	// The protogen package will handle the correct package name
+	return "&" + string(msgDesc.Name()) + "{}"
 }
