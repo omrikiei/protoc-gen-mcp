@@ -307,6 +307,61 @@ func generateService(g *protogen.GeneratedFile, service *protogen.Service, file 
 		g.P()
 	}
 
+	// Register all messages defined in the proto file as resources
+	g.P("	// Register all messages defined in the proto file as resources")
+	for _, message := range file.Messages {
+		// Skip if this message is already registered as a request/response
+		isRegistered := false
+		for _, method := range service.Methods {
+			if method.Input.GoIdent == message.GoIdent || method.Output.GoIdent == message.GoIdent {
+				isRegistered = true
+				break
+			}
+		}
+		if isRegistered {
+			continue
+		}
+
+		// Get message description from annotation or generate JSON template
+		description := "Message type " + string(message.GoIdent.GoName)
+		if desc, ok := proto.GetExtension(message.Desc.Options(), mcp.E_McpMessageDescription).(string); ok && desc != "" {
+			description = desc
+		} else {
+			description += "\n\nJSON Template:\n" + generateMessageJSONTemplate(message)
+		}
+
+		g.P("	// Register ", message.GoIdent, " as resource")
+		g.P("	resource = mcp.Resource{")
+		g.P("		URI: \"", message.GoIdent, "\",")
+		g.P("		Name: \"", message.GoIdent, "\",")
+		g.P("		Description: `", description, "`,")
+		g.P("		MIMEType: \"application/json\",")
+		g.P("	}")
+		g.P("	s.resources = append(s.resources, struct {")
+		g.P("		resource mcp.Resource")
+		g.P("		handler server.ResourceHandlerFunc")
+		g.P("	}{")
+		g.P("		resource: resource,")
+		g.P("		handler: func(ctx context.Context, request mcp.ReadResourceRequest) ([]mcp.ResourceContents, error) {")
+		g.P("			// Create a new instance of the message")
+		g.P("			msg := &", message.GoIdent, "{}")
+		// Convert request parameters to message fields
+		g.P("			if err := convertParamsToMessage(request.Params.Arguments, msg); err != nil {")
+		g.P("				return nil, err")
+		g.P("			}")
+		g.P("			// Serialize the message to JSON")
+		g.P("			jsonBytes, err := protojson.Marshal(msg)")
+		g.P("			if err != nil {")
+		g.P("				return nil, fmt.Errorf(\"failed to serialize message: %v\", err)")
+		g.P("			}")
+		g.P("			return []mcp.ResourceContents{mcp.TextResourceContents{")
+		g.P("				Text: string(jsonBytes),")
+		g.P("			}}, nil")
+		g.P("		},")
+		g.P("	})")
+		g.P()
+	}
+
 	// Generate tools for each method
 	var hasCreatedTool bool
 	for _, method := range service.Methods {
@@ -1174,4 +1229,108 @@ func getPointerTypeName(msgDesc protoreflect.MessageDescriptor, currentPkg strin
 	// For regular protobuf messages, just return the name without package
 	// The protogen package will handle the correct package name
 	return "&" + string(msgDesc.Name()) + "{}"
+}
+
+// generateMessageJSONTemplate generates a JSON template for a protobuf message
+func generateMessageJSONTemplate(message *protogen.Message) string {
+	return generateMessageJSONTemplateWithVisited(message, make(map[string]bool))
+}
+
+// generateMessageJSONTemplateWithVisited generates a JSON template for a protobuf message
+// while tracking visited messages to prevent circular references
+func generateMessageJSONTemplateWithVisited(message *protogen.Message, visited map[string]bool) string {
+	// Check if we've already visited this message type to prevent circular references
+	messageName := string(message.Desc.FullName())
+	if visited[messageName] {
+		return "{}" // Return empty object for circular references
+	}
+	visited[messageName] = true
+
+	template := "{\n"
+	for _, field := range message.Fields {
+		fieldName := field.Desc.JSONName()
+		switch field.Desc.Kind() {
+		case protoreflect.StringKind:
+			if field.Desc.IsList() {
+				template += fmt.Sprintf("  \"%s\": [\"string\"],\n", fieldName)
+			} else {
+				template += fmt.Sprintf("  \"%s\": \"string\",\n", fieldName)
+			}
+		case protoreflect.BytesKind:
+			if field.Desc.IsList() {
+				template += fmt.Sprintf("  \"%s\": [\"base64\"],\n", fieldName)
+			} else {
+				template += fmt.Sprintf("  \"%s\": \"base64\",\n", fieldName)
+			}
+		case protoreflect.Int32Kind, protoreflect.Int64Kind,
+			protoreflect.Uint32Kind, protoreflect.Uint64Kind:
+			if field.Desc.IsList() {
+				template += fmt.Sprintf("  \"%s\": [0],\n", fieldName)
+			} else {
+				template += fmt.Sprintf("  \"%s\": 0,\n", fieldName)
+			}
+		case protoreflect.BoolKind:
+			if field.Desc.IsList() {
+				template += fmt.Sprintf("  \"%s\": [false],\n", fieldName)
+			} else {
+				template += fmt.Sprintf("  \"%s\": false,\n", fieldName)
+			}
+		case protoreflect.MessageKind:
+			if field.Desc.IsMap() {
+				// For maps, we need to handle both key and value types
+				keyType := "string" // protobuf map keys are always strings
+				var valueTemplate string
+				switch field.Desc.MapValue().Kind() {
+				case protoreflect.StringKind:
+					valueTemplate = "\"string\""
+				case protoreflect.BytesKind:
+					valueTemplate = "\"base64\""
+				case protoreflect.Int32Kind, protoreflect.Int64Kind,
+					protoreflect.Uint32Kind, protoreflect.Uint64Kind:
+					valueTemplate = "0"
+				case protoreflect.BoolKind:
+					valueTemplate = "false"
+				case protoreflect.MessageKind:
+					// For nested message values in maps, we need to get the message type
+					nestedMsg := field.Message
+					if nestedMsg != nil {
+						valueTemplate = generateMessageJSONTemplateWithVisited(nestedMsg, visited)
+					} else {
+						valueTemplate = "{}"
+					}
+				case protoreflect.EnumKind:
+					valueTemplate = "\"ENUM_VALUE\""
+				default:
+					valueTemplate = "\"string\""
+				}
+				template += fmt.Sprintf("  \"%s\": {\"%s\": %s},\n", fieldName, keyType, valueTemplate)
+			} else if field.Desc.IsList() {
+				// For repeated messages, generate template for a single item
+				nestedMsg := field.Message
+				if nestedMsg != nil {
+					nestedTemplate := generateMessageJSONTemplateWithVisited(nestedMsg, visited)
+					template += fmt.Sprintf("  \"%s\": [%s],\n", fieldName, nestedTemplate)
+				} else {
+					template += fmt.Sprintf("  \"%s\": [{}],\n", fieldName)
+				}
+			} else {
+				// For single message fields, generate the full template
+				nestedMsg := field.Message
+				if nestedMsg != nil {
+					nestedTemplate := generateMessageJSONTemplateWithVisited(nestedMsg, visited)
+					template += fmt.Sprintf("  \"%s\": %s,\n", fieldName, nestedTemplate)
+				} else {
+					template += fmt.Sprintf("  \"%s\": {},\n", fieldName)
+				}
+			}
+		case protoreflect.EnumKind:
+			if field.Desc.IsList() {
+				template += fmt.Sprintf("  \"%s\": [\"ENUM_VALUE\"],\n", fieldName)
+			} else {
+				template += fmt.Sprintf("  \"%s\": \"ENUM_VALUE\",\n", fieldName)
+			}
+		}
+	}
+	template += "}"
+	return template
 }
