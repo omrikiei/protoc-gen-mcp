@@ -861,6 +861,46 @@ func generateMethodTool(g *protogen.GeneratedFile, service *protogen.Service, me
 				if fieldDesc != "" {
 					g.P("			mcp.Description(\"", fieldDesc, "\"),")
 				}
+				// Add schema modification for map value type
+				if field.Message != nil {
+					g.P("			func(schema map[string]interface{}) {")
+					g.P("				properties := make(map[string]interface{})")
+					g.P("				requiredFields := make([]string, 0)")
+					for _, nestedField := range field.Message.Fields {
+						nestedFieldDesc := proto.GetExtension(nestedField.Desc.Options(), mcp.E_McpFieldDescription).(string)
+						nestedIsRequired := proto.GetExtension(nestedField.Desc.Options(), mcp.E_McpRequired).(bool)
+						nestedValidationPattern := proto.GetExtension(nestedField.Desc.Options(), mcp.E_McpValidationPattern).(string)
+						
+						g.P("				properties[\"", nestedField.GoName, "\"] = map[string]interface{}{")
+						switch nestedField.Desc.Kind() {
+						case protoreflect.StringKind:
+							g.P("					\"type\": \"string\",")
+							if nestedValidationPattern != "" {
+								g.P("					\"pattern\": \"", nestedValidationPattern, "\",")
+							}
+						case protoreflect.Int32Kind, protoreflect.Int64Kind,
+							protoreflect.Uint32Kind, protoreflect.Uint64Kind:
+							g.P("					\"type\": \"number\",")
+						case protoreflect.BoolKind:
+							g.P("					\"type\": \"boolean\",")
+						case protoreflect.BytesKind:
+							g.P("					\"type\": \"string\",")
+							g.P("					\"format\": \"byte\",")
+						}
+						if nestedFieldDesc != "" {
+							g.P("					\"description\": \"", nestedFieldDesc, "\",")
+						}
+						g.P("				}")
+						if nestedIsRequired {
+							g.P("				requiredFields = append(requiredFields, \"", nestedField.GoName, "\")")
+						}
+					}
+					g.P("				schema[\"properties\"] = properties")
+					g.P("				if len(requiredFields) > 0 {")
+					g.P("					schema[\"required\"] = requiredFields")
+					g.P("				}")
+					g.P("			},")
+				}
 				g.P("		),")
 			} else if field.Desc.IsList() {
 				g.P("		mcp.WithArray(\"", field.GoName, "\",")
@@ -870,6 +910,49 @@ func generateMethodTool(g *protogen.GeneratedFile, service *protogen.Service, me
 				if fieldDesc != "" {
 					g.P("			mcp.Description(\"", fieldDesc, "\"),")
 				}
+				// Add schema modification for array item type
+				if field.Message != nil {
+					g.P("			func(schema map[string]interface{}) {")
+					g.P("				items := make(map[string]interface{})")
+					g.P("				items[\"type\"] = \"object\"")
+					g.P("				properties := make(map[string]interface{})")
+					g.P("				requiredFields := make([]string, 0)")
+					for _, nestedField := range field.Message.Fields {
+						nestedFieldDesc := proto.GetExtension(nestedField.Desc.Options(), mcp.E_McpFieldDescription).(string)
+						nestedIsRequired := proto.GetExtension(nestedField.Desc.Options(), mcp.E_McpRequired).(bool)
+						nestedValidationPattern := proto.GetExtension(nestedField.Desc.Options(), mcp.E_McpValidationPattern).(string)
+						
+						g.P("				properties[\"", nestedField.GoName, "\"] = map[string]interface{}{")
+						switch nestedField.Desc.Kind() {
+						case protoreflect.StringKind:
+							g.P("					\"type\": \"string\",")
+							if nestedValidationPattern != "" {
+								g.P("					\"pattern\": \"", nestedValidationPattern, "\",")
+							}
+						case protoreflect.Int32Kind, protoreflect.Int64Kind,
+							protoreflect.Uint32Kind, protoreflect.Uint64Kind:
+							g.P("					\"type\": \"number\",")
+						case protoreflect.BoolKind:
+							g.P("					\"type\": \"boolean\",")
+						case protoreflect.BytesKind:
+							g.P("					\"type\": \"string\",")
+							g.P("					\"format\": \"byte\",")
+						}
+						if nestedFieldDesc != "" {
+							g.P("					\"description\": \"", nestedFieldDesc, "\",")
+						}
+						g.P("				}")
+						if nestedIsRequired {
+							g.P("				requiredFields = append(requiredFields, \"", nestedField.GoName, "\")")
+						}
+					}
+					g.P("				items[\"properties\"] = properties")
+					g.P("				if len(requiredFields) > 0 {")
+					g.P("					items[\"required\"] = requiredFields")
+					g.P("				}")
+					g.P("				schema[\"items\"] = items")
+					g.P("			},")
+				}
 				g.P("		),")
 			} else {
 				g.P("		mcp.WithObject(\"", field.GoName, "\",")
@@ -878,6 +961,46 @@ func generateMethodTool(g *protogen.GeneratedFile, service *protogen.Service, me
 				}
 				if fieldDesc != "" {
 					g.P("			mcp.Description(\"", fieldDesc, "\"),")
+				}
+				// Add schema modification for nested object
+				if field.Message != nil {
+					g.P("			func(schema map[string]interface{}) {")
+					g.P("				properties := make(map[string]interface{})")
+					g.P("				requiredFields := make([]string, 0)")
+					for _, nestedField := range field.Message.Fields {
+						nestedFieldDesc := proto.GetExtension(nestedField.Desc.Options(), mcp.E_McpFieldDescription).(string)
+						nestedIsRequired := proto.GetExtension(nestedField.Desc.Options(), mcp.E_McpRequired).(bool)
+						nestedValidationPattern := proto.GetExtension(nestedField.Desc.Options(), mcp.E_McpValidationPattern).(string)
+						
+						g.P("				properties[\"", nestedField.GoName, "\"] = map[string]interface{}{")
+						switch nestedField.Desc.Kind() {
+						case protoreflect.StringKind:
+							g.P("					\"type\": \"string\",")
+							if nestedValidationPattern != "" {
+								g.P("					\"pattern\": \"", nestedValidationPattern, "\",")
+							}
+						case protoreflect.Int32Kind, protoreflect.Int64Kind,
+							protoreflect.Uint32Kind, protoreflect.Uint64Kind:
+							g.P("					\"type\": \"number\",")
+						case protoreflect.BoolKind:
+							g.P("					\"type\": \"boolean\",")
+						case protoreflect.BytesKind:
+							g.P("					\"type\": \"string\",")
+							g.P("					\"format\": \"byte\",")
+						}
+						if nestedFieldDesc != "" {
+							g.P("					\"description\": \"", nestedFieldDesc, "\",")
+						}
+						g.P("				}")
+						if nestedIsRequired {
+							g.P("				requiredFields = append(requiredFields, \"", nestedField.GoName, "\")")
+						}
+					}
+					g.P("				schema[\"properties\"] = properties")
+					g.P("				if len(requiredFields) > 0 {")
+					g.P("					schema[\"required\"] = requiredFields")
+					g.P("				}")
+					g.P("			},")
 				}
 				g.P("		),")
 			}
