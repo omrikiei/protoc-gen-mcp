@@ -310,13 +310,13 @@ func generateService(g *protogen.GeneratedFile, service *protogen.Service, file 
 	g.P("			continue")
 	g.P("		}")
 	g.P("		fieldName := parts[2]")
-	g.P()
+
 	g.P("		// Get value from params")
 	g.P("		paramVal, ok := params[fieldName]")
 	g.P("		if !ok {")
 	g.P("			continue")
 	g.P("		}")
-	g.P()
+
 	g.P("		// Convert and set field value based on type")
 	g.P("		switch field.Kind() {")
 	g.P("		case reflect.String:")
@@ -356,9 +356,63 @@ func generateService(g *protogen.GeneratedFile, service *protogen.Service, file 
 	g.P("						if boolVal, ok := v.(bool); ok {")
 	g.P("							slice.Index(j).SetBool(boolVal)")
 	g.P("						}")
+	g.P("					case reflect.Struct:")
+	g.P("						if mapVal, ok := v.(map[string]interface{}); ok {")
+	g.P("							nestedMsg := reflect.New(field.Type().Elem()).Interface()")
+	g.P("							if err := convertParamsToMessage(mapVal, nestedMsg); err != nil {")
+	g.P("								return fmt.Errorf(\"failed to convert nested message: %v\", err)")
+	g.P("							}")
+	g.P("							slice.Index(j).Set(reflect.ValueOf(nestedMsg).Elem())")
+	g.P("						}")
 	g.P("					}")
 	g.P("				}")
 	g.P("				field.Set(slice)")
+	g.P("			}")
+	g.P("		case reflect.Struct:")
+	g.P("			if mapVal, ok := paramVal.(map[string]interface{}); ok {")
+	g.P("				nestedMsg := reflect.New(field.Type()).Interface()")
+	g.P("				if err := convertParamsToMessage(mapVal, nestedMsg); err != nil {")
+	g.P("					return fmt.Errorf(\"failed to convert nested message: %v\", err)")
+	g.P("				}")
+	g.P("				field.Set(reflect.ValueOf(nestedMsg).Elem())")
+	g.P("			}")
+	g.P("		case reflect.Map:")
+	g.P("			if mapVal, ok := paramVal.(map[string]interface{}); ok {")
+	g.P("				newMap := reflect.MakeMap(field.Type())")
+	g.P("				for k, v := range mapVal {")
+	g.P("					key := reflect.ValueOf(k)")
+	g.P("					var value reflect.Value")
+	g.P("					switch field.Type().Elem().Kind() {")
+	g.P("					case reflect.String:")
+	g.P("						if strVal, ok := v.(string); ok {")
+	g.P("							value = reflect.ValueOf(strVal)")
+	g.P("						}")
+	g.P("					case reflect.Int32, reflect.Int64:")
+	g.P("						if numVal, ok := v.(float64); ok {")
+	g.P("							value = reflect.ValueOf(int64(numVal))")
+	g.P("						}")
+	g.P("					case reflect.Uint32, reflect.Uint64:")
+	g.P("						if numVal, ok := v.(float64); ok {")
+	g.P("							value = reflect.ValueOf(uint64(numVal))")
+	g.P("						}")
+	g.P("					case reflect.Bool:")
+	g.P("						if boolVal, ok := v.(bool); ok {")
+	g.P("							value = reflect.ValueOf(boolVal)")
+	g.P("						}")
+	g.P("					case reflect.Struct:")
+	g.P("						if mapVal, ok := v.(map[string]interface{}); ok {")
+	g.P("							nestedMsg := reflect.New(field.Type().Elem()).Interface()")
+	g.P("							if err := convertParamsToMessage(mapVal, nestedMsg); err != nil {")
+	g.P("								return fmt.Errorf(\"failed to convert nested message: %v\", err)")
+	g.P("							}")
+	g.P("							value = reflect.ValueOf(nestedMsg).Elem()")
+	g.P("						}")
+	g.P("					}")
+	g.P("					if value.IsValid() {")
+	g.P("						newMap.SetMapIndex(key, value)")
+	g.P("					}")
+	g.P("				}")
+	g.P("				field.Set(newMap)")
 	g.P("			}")
 	g.P("		}")
 	g.P("	}")
@@ -427,7 +481,7 @@ func generateMethodTool(g *protogen.GeneratedFile, service *protogen.Service, me
 				g.P("			mcp.Description(\"", fieldDesc, "\"),")
 			}
 			if validationPattern != "" {
-				g.P("			mcp.Pattern(\"", validationPattern, "\",),")
+				g.P("			mcp.Pattern(\"", validationPattern, "\"),")
 			}
 			g.P("		),")
 		case protoreflect.BytesKind:
@@ -480,11 +534,39 @@ func generateMethodTool(g *protogen.GeneratedFile, service *protogen.Service, me
 					g.P("			mcp.Description(\"", fieldDesc, "\"),")
 				}
 				g.P("		),")
+			} else {
+				// Handle nested message
+				g.P("		mcp.WithObject(\"", field.GoName, "\",")
+				if isRequired {
+					g.P("			mcp.Required(),")
+				}
+				if fieldDesc != "" {
+					g.P("			mcp.Description(\"", fieldDesc, "\"),")
+				}
+				g.P("		),")
 			}
+		case protoreflect.EnumKind:
+			if field.Desc.IsList() {
+				g.P("		mcp.WithArray(\"", field.GoName, "\",")
+			} else {
+				g.P("		mcp.WithString(\"", field.GoName, "\",")
+			}
+			if isRequired {
+				g.P("			mcp.Required(),")
+			}
+			if fieldDesc != "" {
+				g.P("			mcp.Description(\"", fieldDesc, "\"),")
+			}
+			if validationPattern != "" {
+				g.P("			mcp.Pattern(\"", validationPattern, "\"),")
+			}
+			g.P("		),")
 		}
 	}
 	g.P("	)")
 	g.P()
+
+	// Add tool handler
 	g.P("	s.tools = append(s.tools, struct {")
 	g.P("		tool mcp.Tool")
 	g.P("		handler server.ToolHandlerFunc")
@@ -592,6 +674,56 @@ func generateMethodTool(g *protogen.GeneratedFile, service *protogen.Service, me
 				g.P("					}")
 				g.P("				} else {")
 				g.P("					return nil, fmt.Errorf(\"", field.GoName, " must be a map\")")
+				g.P("				}")
+			} else {
+				// Handle nested message
+				g.P("				if msgVal, ok := val.(map[string]interface{}); ok {")
+				g.P("					// Create a new instance of the nested message")
+				g.P("					nestedMsg := &", field.Message.GoIdent, "{}")
+				g.P("					// Convert nested message fields")
+				g.P("					if err := convertParamsToMessage(msgVal, nestedMsg); err != nil {")
+				g.P("						return nil, fmt.Errorf(\"failed to convert nested message ", field.GoName, ": %v\", err)")
+				g.P("					}")
+				g.P("					req.", field.GoName, " = nestedMsg")
+				g.P("				} else {")
+				g.P("					return nil, fmt.Errorf(\"", field.GoName, " must be a message\")")
+				g.P("				}")
+			}
+		case protoreflect.EnumKind:
+			if field.Desc.IsList() {
+				g.P("				if arrVal, ok := val.([]interface{}); ok {")
+				g.P("					req.", field.GoName, " = make([]", field.Enum.GoIdent, ", len(arrVal))")
+				g.P("					for i, v := range arrVal {")
+				g.P("						if strVal, ok := v.(string); ok {")
+				g.P("							// Try to convert string to enum value")
+				g.P("							if enumVal, ok := ", field.Enum.GoIdent, "_value[strVal]; ok {")
+				g.P("								req.", field.GoName, "[i] = ", field.Enum.GoIdent, "(enumVal)")
+				g.P("							} else {")
+				g.P("								return nil, fmt.Errorf(\"invalid enum value for ", field.GoName, ": %s\", strVal)")
+				g.P("							}")
+				g.P("						} else if numVal, ok := v.(float64); ok {")
+				g.P("							// Direct numeric value")
+				g.P("							req.", field.GoName, "[i] = ", field.Enum.GoIdent, "(int32(numVal))")
+				g.P("						} else {")
+				g.P("							return nil, fmt.Errorf(\"", field.GoName, " must be an array of enum values\")")
+				g.P("						}")
+				g.P("					}")
+				g.P("				} else {")
+				g.P("					return nil, fmt.Errorf(\"", field.GoName, " must be an array of enum values\")")
+				g.P("				}")
+			} else {
+				g.P("				if strVal, ok := val.(string); ok {")
+				g.P("					// Try to convert string to enum value")
+				g.P("					if enumVal, ok := ", field.Enum.GoIdent, "_value[strVal]; ok {")
+				g.P("						req.", field.GoName, " = ", field.Enum.GoIdent, "(enumVal)")
+				g.P("					} else {")
+				g.P("						return nil, fmt.Errorf(\"invalid enum value for ", field.GoName, ": %s\", strVal)")
+				g.P("					}")
+				g.P("				} else if numVal, ok := val.(float64); ok {")
+				g.P("					// Direct numeric value")
+				g.P("					req.", field.GoName, " = ", field.Enum.GoIdent, "(int32(numVal))")
+				g.P("				} else {")
+				g.P("					return nil, fmt.Errorf(\"", field.GoName, " must be an enum value\")")
 				g.P("				}")
 			}
 		}
