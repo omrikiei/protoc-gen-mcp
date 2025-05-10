@@ -190,6 +190,14 @@ var file_protogen_mcp_annotations_proto_extTypes = []protoimpl.ExtensionInfo{
 		Tag:           "bytes,50002,opt,name=mcp_template_description",
 		Filename:      "protogen/mcp/annotations.proto",
 	},
+	{
+		ExtendedType:  (*descriptorpb.MessageOptions)(nil),
+		ExtensionType: (*string)(nil),
+		Field:         50003,
+		Name:          "mcp.mcp_message_description",
+		Tag:           "bytes,50003,opt,name=mcp_message_description",
+		Filename:      "protogen/mcp/annotations.proto",
+	},
 }
 
 // Extension fields to descriptorpb.ServiceOptions.
@@ -273,6 +281,10 @@ var (
 	E_McpUriTemplate = &file_protogen_mcp_annotations_proto_extTypes[19]
 	// optional string mcp_template_description = 50002;
 	E_McpTemplateDescription = &file_protogen_mcp_annotations_proto_extTypes[20]
+	// Message description
+	//
+	// optional string mcp_message_description = 50003;
+	E_McpMessageDescription = &file_protogen_mcp_annotations_proto_extTypes[21]
 )
 
 var File_protogen_mcp_annotations_proto protoreflect.FileDescriptor
@@ -301,7 +313,8 @@ const file_protogen_mcp_annotations_proto_rawDesc = "" +
 	"\x16mcp_validation_message\x12\x1d.google.protobuf.FieldOptions\x18ֆ\x03 \x01(\tR\x14mcpValidationMessage:d\n" +
 	"\x1dmcp_resource_template_message\x12\x1f.google.protobuf.MessageOptions\x18І\x03 \x01(\bR\x1amcpResourceTemplateMessage:K\n" +
 	"\x10mcp_uri_template\x12\x1f.google.protobuf.MessageOptions\x18ц\x03 \x01(\tR\x0emcpUriTemplate:[\n" +
-	"\x18mcp_template_description\x12\x1f.google.protobuf.MessageOptions\x18҆\x03 \x01(\tR\x16mcpTemplateDescriptionB1Z/github.com/omrikiei/protoc-gen-mcp/protogen/mcpb\x06proto3"
+	"\x18mcp_template_description\x12\x1f.google.protobuf.MessageOptions\x18҆\x03 \x01(\tR\x16mcpTemplateDescription:Y\n" +
+	"\x17mcp_message_description\x12\x1f.google.protobuf.MessageOptions\x18ӆ\x03 \x01(\tR\x15mcpMessageDescriptionB1Z/github.com/omrikiei/protoc-gen-mcp/protogen/mcpb\x06proto3"
 
 var file_protogen_mcp_annotations_proto_goTypes = []any{
 	(*descriptorpb.ServiceOptions)(nil), // 0: google.protobuf.ServiceOptions
@@ -331,10 +344,11 @@ var file_protogen_mcp_annotations_proto_depIdxs = []int32{
 	3,  // 18: mcp.mcp_resource_template_message:extendee -> google.protobuf.MessageOptions
 	3,  // 19: mcp.mcp_uri_template:extendee -> google.protobuf.MessageOptions
 	3,  // 20: mcp.mcp_template_description:extendee -> google.protobuf.MessageOptions
-	21, // [21:21] is the sub-list for method output_type
-	21, // [21:21] is the sub-list for method input_type
-	21, // [21:21] is the sub-list for extension type_name
-	0,  // [0:21] is the sub-list for extension extendee
+	3,  // 21: mcp.mcp_message_description:extendee -> google.protobuf.MessageOptions
+	22, // [22:22] is the sub-list for method output_type
+	22, // [22:22] is the sub-list for method input_type
+	22, // [22:22] is the sub-list for extension type_name
+	0,  // [0:22] is the sub-list for extension extendee
 	0,  // [0:0] is the sub-list for field type_name
 }
 
@@ -350,7 +364,7 @@ func file_protogen_mcp_annotations_proto_init() {
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_protogen_mcp_annotations_proto_rawDesc), len(file_protogen_mcp_annotations_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   0,
-			NumExtensions: 21,
+			NumExtensions: 22,
 			NumServices:   0,
 		},
 		GoTypes:           file_protogen_mcp_annotations_proto_goTypes,

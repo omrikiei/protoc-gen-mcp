@@ -59,4 +59,6 @@ extend google.protobuf.MessageOptions {
   bool mcp_resource_template_message = 50000;
   string mcp_uri_template = 50001;
   string mcp_template_description = 50002;
+  // Message description
+  string mcp_message_description = 50003;
 }
