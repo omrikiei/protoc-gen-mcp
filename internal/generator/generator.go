@@ -2,6 +2,9 @@ package generator
 
 import (
 	"fmt"
+	"sort"
+	"strconv"
+	"strings"
 
 	"github.com/omrikiei/protoc-gen-mcp/protogen/mcp"
 	"google.golang.org/protobuf/compiler/protogen"
@@ -928,240 +931,48 @@ func generateMethodTool(g *protogen.GeneratedFile, service *protogen.Service, me
 		case protoreflect.MessageKind:
 			if field.Desc.IsMap() {
 				g.P("		mcp.WithObject(\"", field.GoName, "\",")
-				if isRequired {
-					g.P("			mcp.Required(),")
-				}
-				if fieldDesc != "" {
-					g.P("			mcp.Description(\"", fieldDesc, "\"),")
-				}
 				// Add schema modification for map value type
 				if field.Message != nil {
 					g.P("			func(schema map[string]interface{}) {")
-					g.P("				properties := make(map[string]interface{})")
-					g.P("				requiredFields := make([]string, 0)")
-					for _, nestedField := range field.Message.Fields {
-						nestedFieldDesc := proto.GetExtension(nestedField.Desc.Options(), mcp.E_McpFieldDescription).(string)
-						nestedIsRequired := proto.GetExtension(nestedField.Desc.Options(), mcp.E_McpRequired).(bool)
-						nestedValidationPattern := proto.GetExtension(nestedField.Desc.Options(), mcp.E_McpValidationPattern).(string)
-						
-						g.P("				properties[\"", nestedField.GoName, "\"] = map[string]interface{}{")
-						switch nestedField.Desc.Kind() {
-						case protoreflect.StringKind:
-							g.P("					\"type\": \"string\",")
-							if nestedValidationPattern != "" {
-								g.P("					\"pattern\": \"", nestedValidationPattern, "\",")
-							}
-						case protoreflect.Int32Kind, protoreflect.Int64Kind,
-							protoreflect.Uint32Kind, protoreflect.Uint64Kind:
-							g.P("					\"type\": \"number\",")
-						case protoreflect.BoolKind:
-							g.P("					\"type\": \"boolean\",")
-						case protoreflect.BytesKind:
-							g.P("					\"type\": \"string\",")
-							g.P("					\"format\": \"byte\",")
-						}
-						if nestedFieldDesc != "" {
-							g.P("					\"description\": \"", nestedFieldDesc, "\",")
-						}
-						g.P("				}")
-						if nestedIsRequired {
-							g.P("				requiredFields = append(requiredFields, \"", nestedField.GoName, "\")")
-						}
+					if isRequired {
+						g.P("				schema[\"required\"] = true")
 					}
-					g.P("				schema[\"properties\"] = properties")
-					g.P("				if len(requiredFields) > 0 {")
-					g.P("					schema[\"required\"] = requiredFields")
-					g.P("				}")
+					if fieldDesc != "" {
+						g.P("				schema[\"description\"] = ", strconv.Quote(fieldDesc))
+					}
+					g.P("				schema[\"additionalProperties\"] = ", generateSchemaMapString(generateMessageJSONSchema(field.Message, make(map[string]bool))), "")
 					g.P("			},")
 				}
 				g.P("		),")
 			} else if field.Desc.IsList() {
 				g.P("		mcp.WithArray(\"", field.GoName, "\",")
-				if isRequired {
-					g.P("			mcp.Required(),")
-				}
-				if fieldDesc != "" {
-					g.P("			mcp.Description(\"", fieldDesc, "\"),")
-				}
 				// Add schema modification for array item type
 				if field.Message != nil {
 					g.P("			func(schema map[string]interface{}) {")
-					g.P("				items := make(map[string]interface{})")
-					g.P("				items[\"type\"] = \"object\"")
-					g.P("				properties := make(map[string]interface{})")
-					g.P("				requiredFields := make([]string, 0)")
-					for _, nestedField := range field.Message.Fields {
-						nestedFieldDesc := proto.GetExtension(nestedField.Desc.Options(), mcp.E_McpFieldDescription).(string)
-						nestedIsRequired := proto.GetExtension(nestedField.Desc.Options(), mcp.E_McpRequired).(bool)
-						nestedValidationPattern := proto.GetExtension(nestedField.Desc.Options(), mcp.E_McpValidationPattern).(string)
-						
-						g.P("				properties[\"", nestedField.GoName, "\"] = map[string]interface{}{")
-						switch nestedField.Desc.Kind() {
-						case protoreflect.StringKind:
-							g.P("					\"type\": \"string\",")
-							if nestedValidationPattern != "" {
-								g.P("					\"pattern\": \"", nestedValidationPattern, "\",")
-							}
-						case protoreflect.Int32Kind, protoreflect.Int64Kind,
-							protoreflect.Uint32Kind, protoreflect.Uint64Kind:
-							g.P("					\"type\": \"number\",")
-						case protoreflect.BoolKind:
-							g.P("					\"type\": \"boolean\",")
-						case protoreflect.BytesKind:
-							g.P("					\"type\": \"string\",")
-							g.P("					\"format\": \"byte\",")
-						}
-						if nestedFieldDesc != "" {
-							g.P("					\"description\": \"", nestedFieldDesc, "\",")
-						}
-						g.P("				}")
-						if nestedIsRequired {
-							g.P("				requiredFields = append(requiredFields, \"", nestedField.GoName, "\")")
-						}
+					if isRequired {
+						g.P("				schema[\"required\"] = true")
 					}
-					g.P("				items[\"properties\"] = properties")
-					g.P("				if len(requiredFields) > 0 {")
-					g.P("					items[\"required\"] = requiredFields")
-					g.P("				}")
-					g.P("				schema[\"items\"] = items")
+					if fieldDesc != "" {
+						g.P("				schema[\"description\"] = ", strconv.Quote(fieldDesc))
+					}
+					g.P("				schema[\"items\"] = ", generateSchemaMapString(generateMessageJSONSchema(field.Message, make(map[string]bool))), "")
 					g.P("			},")
 				}
 				g.P("		),")
 			} else {
 				g.P("		mcp.WithObject(\"", field.GoName, "\",")
-				if isRequired {
-					g.P("			mcp.Required(),")
-				}
-				if fieldDesc != "" {
-					g.P("			mcp.Description(\"", fieldDesc, "\"),")
-				}
 				// Add schema modification for nested object
 				if field.Message != nil {
 					g.P("			func(schema map[string]interface{}) {")
-					g.P("				properties := make(map[string]interface{})")
-					g.P("				requiredFields := make([]string, 0)")
-					for _, nestedField := range field.Message.Fields {
-						nestedFieldDesc := proto.GetExtension(nestedField.Desc.Options(), mcp.E_McpFieldDescription).(string)
-						nestedIsRequired := proto.GetExtension(nestedField.Desc.Options(), mcp.E_McpRequired).(bool)
-						nestedValidationPattern := proto.GetExtension(nestedField.Desc.Options(), mcp.E_McpValidationPattern).(string)
-						
-						g.P("				properties[\"", nestedField.GoName, "\"] = map[string]interface{}{")
-						if nestedField.Desc.IsList() {
-							g.P("					\"type\": \"array\",")
-							g.P("					\"items\": map[string]interface{}{")
-							switch nestedField.Desc.Kind() {
-							case protoreflect.StringKind:
-								g.P("						\"type\": \"string\",")
-								if nestedValidationPattern != "" {
-									g.P("						\"pattern\": \"", nestedValidationPattern, "\",")
-								}
-							case protoreflect.Int32Kind, protoreflect.Int64Kind,
-								protoreflect.Uint32Kind, protoreflect.Uint64Kind:
-								g.P("						\"type\": \"number\",")
-							case protoreflect.BoolKind:
-								g.P("						\"type\": \"boolean\",")
-							case protoreflect.BytesKind:
-								g.P("						\"type\": \"string\",")
-								g.P("						\"format\": \"byte\",")
-							case protoreflect.MessageKind:
-								g.P("						\"type\": \"object\",")
-								if nestedField.Message != nil {
-									g.P("						\"properties\": map[string]interface{}{")
-									for _, msgField := range nestedField.Message.Fields {
-										msgFieldDesc := proto.GetExtension(msgField.Desc.Options(), mcp.E_McpFieldDescription).(string)
-										msgFieldValidationPattern := proto.GetExtension(msgField.Desc.Options(), mcp.E_McpValidationPattern).(string)
-										
-										g.P("							\"", msgField.GoName, "\": map[string]interface{}{")
-										switch msgField.Desc.Kind() {
-										case protoreflect.StringKind:
-											g.P("								\"type\": \"string\",")
-											if msgFieldValidationPattern != "" {
-												g.P("								\"pattern\": \"", msgFieldValidationPattern, "\",")
-											}
-										case protoreflect.Int32Kind, protoreflect.Int64Kind,
-											protoreflect.Uint32Kind, protoreflect.Uint64Kind:
-											g.P("								\"type\": \"number\",")
-										case protoreflect.BoolKind:
-											g.P("								\"type\": \"boolean\",")
-										case protoreflect.BytesKind:
-											g.P("								\"type\": \"string\",")
-											g.P("								\"format\": \"byte\",")
-										}
-										if msgFieldDesc != "" {
-											g.P("								\"description\": \"", msgFieldDesc, "\",")
-										}
-										g.P("							},")
-									}
-									g.P("						},")
-								}
-							case protoreflect.EnumKind:
-								g.P("						\"type\": \"string\",")
-							}
-							if nestedFieldDesc != "" {
-								g.P("						\"description\": \"", nestedFieldDesc, "\",")
-							}
-							g.P("					},")
-						} else {
-							switch nestedField.Desc.Kind() {
-							case protoreflect.StringKind:
-								g.P("					\"type\": \"string\",")
-								if nestedValidationPattern != "" {
-									g.P("					\"pattern\": \"", nestedValidationPattern, "\",")
-								}
-							case protoreflect.Int32Kind, protoreflect.Int64Kind,
-								protoreflect.Uint32Kind, protoreflect.Uint64Kind:
-								g.P("					\"type\": \"number\",")
-							case protoreflect.BoolKind:
-								g.P("					\"type\": \"boolean\",")
-							case protoreflect.BytesKind:
-								g.P("					\"type\": \"string\",")
-								g.P("					\"format\": \"byte\",")
-							case protoreflect.MessageKind:
-								g.P("					\"type\": \"object\",")
-								if nestedField.Message != nil {
-									g.P("					\"properties\": map[string]interface{}{")
-									for _, msgField := range nestedField.Message.Fields {
-										msgFieldDesc := proto.GetExtension(msgField.Desc.Options(), mcp.E_McpFieldDescription).(string)
-										msgFieldValidationPattern := proto.GetExtension(msgField.Desc.Options(), mcp.E_McpValidationPattern).(string)
-										
-										g.P("						\"", msgField.GoName, "\": map[string]interface{}{")
-										switch msgField.Desc.Kind() {
-										case protoreflect.StringKind:
-											g.P("							\"type\": \"string\",")
-											if msgFieldValidationPattern != "" {
-												g.P("							\"pattern\": \"", msgFieldValidationPattern, "\",")
-											}
-										case protoreflect.Int32Kind, protoreflect.Int64Kind,
-											protoreflect.Uint32Kind, protoreflect.Uint64Kind:
-											g.P("							\"type\": \"number\",")
-										case protoreflect.BoolKind:
-											g.P("							\"type\": \"boolean\",")
-										case protoreflect.BytesKind:
-											g.P("							\"type\": \"string\",")
-											g.P("							\"format\": \"byte\",")
-										}
-										if msgFieldDesc != "" {
-											g.P("							\"description\": \"", msgFieldDesc, "\",")
-										}
-										g.P("					},")
-									}
-									g.P("					},")
-								}
-							case protoreflect.EnumKind:
-								g.P("					\"type\": \"string\",")
-							}
-							if nestedFieldDesc != "" {
-								g.P("					\"description\": \"", nestedFieldDesc, "\",")
-							}
-						}
-						g.P("				}")
-						if nestedIsRequired {
-							g.P("				requiredFields = append(requiredFields, \"", nestedField.GoName, "\")")
-						}
+					if isRequired {
+						g.P("				schema[\"required\"] = true")
 					}
-					g.P("				schema[\"properties\"] = properties")
-					g.P("				if len(requiredFields) > 0 {")
-					g.P("					schema[\"required\"] = requiredFields")
+					if fieldDesc != "" {
+						g.P("				schema[\"description\"] = ", strconv.Quote(fieldDesc))
+					}
+					g.P("				nestedSchema := ", generateSchemaMapString(generateMessageJSONSchema(field.Message, make(map[string]bool))), "")
+					g.P("				for k, v := range nestedSchema {")
+					g.P("					schema[k] = v")
 					g.P("				}")
 					g.P("			},")
 				}
@@ -1182,6 +993,8 @@ func generateMethodTool(g *protogen.GeneratedFile, service *protogen.Service, me
 			if validationPattern != "" {
 				g.P("			mcp.Pattern(\"", validationPattern, "\"),")
 			}
+			// Add enum values
+			g.P("			mcp.Enum(", generateEnumValuesString(field.Enum), "...),")
 			g.P("		),")
 		}
 	}
@@ -1190,8 +1003,8 @@ func generateMethodTool(g *protogen.GeneratedFile, service *protogen.Service, me
 
 	// Add tool handler
 	g.P("	s.tools = append(s.tools, struct {")
-	g.P("		tool mcp.Tool")
-	g.P("		handler server.ToolHandlerFunc")
+	g.P("			tool mcp.Tool")
+	g.P("			handler server.ToolHandlerFunc")
 	g.P("	}{")
 	g.P("		tool: tool,")
 	g.P("		handler: func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {")
@@ -1619,4 +1432,212 @@ func generateMessageJSONTemplateWithVisited(message *protogen.Message, visited m
 	}
 	template += "}"
 	return template
+}
+
+// generateMessageJSONSchema generates a JSON schema for a protobuf message
+func generateMessageJSONSchema(message *protogen.Message, visited map[string]bool) map[string]interface{} {
+	// Check if we've already visited this message type to prevent circular references
+	messageName := string(message.Desc.FullName())
+	if visited[messageName] {
+		return map[string]interface{}{
+			"type": "object",
+		} // Return simple object for circular references
+	}
+	visited[messageName] = true
+
+	schema := map[string]interface{}{
+		"type":       "object",
+		"properties": make(map[string]interface{}),
+	}
+
+	requiredFields := make([]string, 0)
+
+	for _, field := range message.Fields {
+		fieldName := field.Desc.JSONName()
+		fieldSchema := make(map[string]interface{})
+
+		// Get MCP field annotations
+		fieldDesc := proto.GetExtension(field.Desc.Options(), mcp.E_McpFieldDescription).(string)
+		isRequired := proto.GetExtension(field.Desc.Options(), mcp.E_McpRequired).(bool)
+		validationPattern := proto.GetExtension(field.Desc.Options(), mcp.E_McpValidationPattern).(string)
+
+		// Add description if present
+		if fieldDesc != "" {
+			fieldSchema["description"] = fieldDesc
+		}
+
+		// Add validation pattern if present
+		if validationPattern != "" {
+			fieldSchema["pattern"] = validationPattern
+		}
+
+		switch field.Desc.Kind() {
+		case protoreflect.StringKind:
+			if field.Desc.IsList() {
+				fieldSchema["type"] = "array"
+				fieldSchema["items"] = map[string]interface{}{
+					"type": "string",
+				}
+			} else {
+				fieldSchema["type"] = "string"
+			}
+		case protoreflect.BytesKind:
+			if field.Desc.IsList() {
+				fieldSchema["type"] = "array"
+				fieldSchema["items"] = map[string]interface{}{
+					"type":   "string",
+					"format": "byte",
+				}
+			} else {
+				fieldSchema["type"] = "string"
+				fieldSchema["format"] = "byte"
+			}
+		case protoreflect.Int32Kind, protoreflect.Int64Kind,
+			protoreflect.Uint32Kind, protoreflect.Uint64Kind:
+			if field.Desc.IsList() {
+				fieldSchema["type"] = "array"
+				fieldSchema["items"] = map[string]interface{}{
+					"type": "number",
+				}
+			} else {
+				fieldSchema["type"] = "number"
+			}
+		case protoreflect.BoolKind:
+			if field.Desc.IsList() {
+				fieldSchema["type"] = "array"
+				fieldSchema["items"] = map[string]interface{}{
+					"type": "boolean",
+				}
+			} else {
+				fieldSchema["type"] = "boolean"
+			}
+		case protoreflect.MessageKind:
+			if field.Desc.IsMap() {
+				fieldSchema["type"] = "object"
+				fieldSchema["additionalProperties"] = generateMessageJSONSchema(field.Message, visited)
+			} else if field.Desc.IsList() {
+				fieldSchema["type"] = "array"
+				fieldSchema["items"] = generateMessageJSONSchema(field.Message, visited)
+			} else {
+				fieldSchema = generateMessageJSONSchema(field.Message, visited)
+			}
+		case protoreflect.EnumKind:
+			if field.Desc.IsList() {
+				fieldSchema["type"] = "array"
+				fieldSchema["items"] = map[string]interface{}{
+					"type": "string",
+					"enum": getEnumValues(field.Enum),
+				}
+			} else {
+				fieldSchema["type"] = "string"
+				fieldSchema["enum"] = getEnumValues(field.Enum)
+			}
+		}
+
+		schema["properties"].(map[string]interface{})[fieldName] = fieldSchema
+		if isRequired {
+			requiredFields = append(requiredFields, fieldName)
+		}
+	}
+
+	if len(requiredFields) > 0 {
+		schema["required"] = requiredFields
+	}
+
+	return schema
+}
+
+// getEnumValues returns a list of enum values as strings
+func getEnumValues(enum *protogen.Enum) []string {
+	values := make([]string, 0, len(enum.Values))
+	for _, value := range enum.Values {
+		values = append(values, string(value.Desc.Name()))
+	}
+	return values
+}
+
+// generateSchemaMapString converts a schema map to a Go map literal string
+func generateSchemaMapString(schema map[string]interface{}) string {
+	var result strings.Builder
+	result.WriteString("map[string]interface{}{")
+	
+	// Sort keys for deterministic output
+	keys := make([]string, 0, len(schema))
+	for k := range schema {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	for i, k := range keys {
+		if i > 0 {
+			result.WriteString(", ")
+		}
+		v := schema[k]
+		result.WriteString(fmt.Sprintf("%q: ", k))
+		
+		switch val := v.(type) {
+		case string:
+			result.WriteString(fmt.Sprintf("%q", val))
+		case bool:
+			result.WriteString(fmt.Sprintf("%v", val))
+		case float64:
+			result.WriteString(fmt.Sprintf("%v", val))
+		case []interface{}:
+			result.WriteString(generateArrayString(val))
+		case map[string]interface{}:
+			result.WriteString(generateSchemaMapString(val))
+		default:
+			result.WriteString("nil")
+		}
+	}
+	
+	result.WriteString("}")
+	return result.String()
+}
+
+// generateArrayString converts an array to a Go slice literal string
+func generateArrayString(arr []interface{}) string {
+	var result strings.Builder
+	result.WriteString("[]interface{}{")
+	
+	for i, v := range arr {
+		if i > 0 {
+			result.WriteString(", ")
+		}
+		
+		switch val := v.(type) {
+		case string:
+			result.WriteString(fmt.Sprintf("%q", val))
+		case bool:
+			result.WriteString(fmt.Sprintf("%v", val))
+		case float64:
+			result.WriteString(fmt.Sprintf("%v", val))
+		case []interface{}:
+			result.WriteString(generateArrayString(val))
+		case map[string]interface{}:
+			result.WriteString(generateSchemaMapString(val))
+		default:
+			result.WriteString("nil")
+		}
+	}
+	
+	result.WriteString("}")
+	return result.String()
+}
+
+// generateEnumValuesString converts enum values to a Go slice literal string
+func generateEnumValuesString(enum *protogen.Enum) string {
+	values := getEnumValues(enum)
+	var result strings.Builder
+	result.WriteString("[]string{")
+	
+	for i, v := range values {
+		if i > 0 {
+			result.WriteString(", ")
+		}
+		result.WriteString(fmt.Sprintf("%q", v))
+	}
+	
+	result.WriteString("}")
+	return result.String()
 }
