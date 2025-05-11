@@ -457,25 +457,65 @@ func generateService(g *protogen.GeneratedFile, service *protogen.Service, file 
 	g.P("			// Handle well-known types")
 	g.P("			switch protoName {")
 	g.P("			case \"google.protobuf.Timestamp\":")
-	g.P("				if strVal, ok := params[\"seconds\"].(float64); ok {")
-	g.P("					msgValue.FieldByName(\"Seconds\").SetInt(int64(strVal))")
+	g.P("				// Try different field name variations for seconds")
+	g.P("				var seconds interface{}")
+	g.P("				var ok bool")
+	g.P("				if seconds, ok = params[\"seconds\"]; !ok {")
+	g.P("					if seconds, ok = params[\"Seconds\"]; !ok {")
+	g.P("						return nil")
+	g.P("					}")
 	g.P("				}")
-	g.P("				if strVal, ok := params[\"nanos\"].(float64); ok {")
-	g.P("					msgValue.FieldByName(\"Nanos\").SetInt(int64(strVal))")
+	g.P("				if numVal, ok := seconds.(float64); ok {")
+	g.P("					msgValue.FieldByName(\"Seconds\").SetInt(int64(numVal))")
+	g.P("				}")
+
+	g.P("				// Try different field name variations for nanos")
+	g.P("				var nanos interface{}")
+	g.P("				if nanos, ok = params[\"nanos\"]; !ok {")
+	g.P("					if nanos, ok = params[\"Nanos\"]; !ok {")
+	g.P("						return nil")
+	g.P("					}")
+	g.P("				}")
+	g.P("				if numVal, ok := nanos.(float64); ok {")
+	g.P("					msgValue.FieldByName(\"Nanos\").SetInt(int64(numVal))")
 	g.P("				}")
 	g.P("				return nil")
 	g.P("			case \"google.protobuf.Duration\":")
-	g.P("				if strVal, ok := params[\"seconds\"].(float64); ok {")
-	g.P("					msgValue.FieldByName(\"Seconds\").SetInt(int64(strVal))")
+	g.P("				// Try different field name variations for seconds")
+	g.P("				var seconds interface{}")
+	g.P("				var ok bool")
+	g.P("				if seconds, ok = params[\"seconds\"]; !ok {")
+	g.P("					if seconds, ok = params[\"Seconds\"]; !ok {")
+	g.P("						return nil")
+	g.P("					}")
 	g.P("				}")
-	g.P("				if strVal, ok := params[\"nanos\"].(float64); ok {")
-	g.P("					msgValue.FieldByName(\"Nanos\").SetInt(int64(strVal))")
+	g.P("				if numVal, ok := seconds.(float64); ok {")
+	g.P("					msgValue.FieldByName(\"Seconds\").SetInt(int64(numVal))")
+	g.P("				}")
+
+	g.P("				// Try different field name variations for nanos")
+	g.P("				var nanos interface{}")
+	g.P("				if nanos, ok = params[\"nanos\"]; !ok {")
+	g.P("					if nanos, ok = params[\"Nanos\"]; !ok {")
+	g.P("						return nil")
+	g.P("					}")
+	g.P("				}")
+	g.P("				if numVal, ok := nanos.(float64); ok {")
+	g.P("					msgValue.FieldByName(\"Nanos\").SetInt(int64(numVal))")
 	g.P("				}")
 	g.P("				return nil")
 	g.P("			case \"google.protobuf.FieldMask\":")
-	g.P("				if paths, ok := params[\"paths\"].([]interface{}); ok {")
-	g.P("					pathsSlice := make([]string, len(paths))")
-	g.P("					for i, path := range paths {")
+	g.P("				// Try different field name variations")
+	g.P("				var paths interface{}")
+	g.P("				var ok bool")
+	g.P("				if paths, ok = params[\"paths\"]; !ok {")
+	g.P("					if paths, ok = params[\"Paths\"]; !ok {")
+	g.P("						return nil")
+	g.P("					}")
+	g.P("				}")
+	g.P("				if pathsArr, ok := paths.([]interface{}); ok {")
+	g.P("					pathsSlice := make([]string, len(pathsArr))")
+	g.P("					for i, path := range pathsArr {")
 	g.P("						if strPath, ok := path.(string); ok {")
 	g.P("							pathsSlice[i] = strPath")
 	g.P("						}")
@@ -487,11 +527,29 @@ func generateService(g *protogen.GeneratedFile, service *protogen.Service, file 
 	g.P("				// Empty message has no fields")
 	g.P("				return nil")
 	g.P("			case \"google.protobuf.Any\":")
-	g.P("				if typeURL, ok := params[\"type_url\"].(string); ok {")
-	g.P("					msgValue.FieldByName(\"TypeUrl\").SetString(typeURL)")
+	g.P("				// Try different field name variations for type_url")
+	g.P("				var typeURL interface{}")
+	g.P("				var ok bool")
+	g.P("				if typeURL, ok = params[\"type_url\"]; !ok {")
+	g.P("					if typeURL, ok = params[\"typeUrl\"]; !ok {")
+	g.P("						if typeURL, ok = params[\"TypeUrl\"]; !ok {")
+	g.P("							return nil")
+	g.P("						}")
+	g.P("					}")
 	g.P("				}")
-	g.P("				if value, ok := params[\"value\"].([]byte); ok {")
-	g.P("					msgValue.FieldByName(\"Value\").SetBytes(value)")
+	g.P("				if strVal, ok := typeURL.(string); ok {")
+	g.P("					msgValue.FieldByName(\"TypeUrl\").SetString(strVal)")
+	g.P("				}")
+
+	g.P("				// Try different field name variations for value")
+	g.P("				var value interface{}")
+	g.P("				if value, ok = params[\"value\"]; !ok {")
+	g.P("					if value, ok = params[\"Value\"]; !ok {")
+	g.P("						return nil")
+	g.P("					}")
+	g.P("				}")
+	g.P("				if bytesVal, ok := value.([]byte); ok {")
+	g.P("					msgValue.FieldByName(\"Value\").SetBytes(bytesVal)")
 	g.P("				}")
 	g.P("				return nil")
 	g.P("			case \"google.protobuf.Struct\":")
@@ -625,10 +683,25 @@ func generateService(g *protogen.GeneratedFile, service *protogen.Service, file 
 	g.P("			continue")
 	g.P("		}")
 	g.P()
-	g.P("		// Get value from params")
+	g.P("		// Get value from params using the protobuf field name")
 	g.P("		paramVal, ok := params[fieldName]")
 	g.P("		if !ok {")
-	g.P("			continue")
+	g.P("			// Try with JSON name as fallback")
+	g.P("			jsonTag := fieldType.Tag.Get(\"json\")")
+	g.P("			if jsonTag != \"\" {")
+	g.P("				jsonParts := strings.Split(jsonTag, \",\")")
+	g.P("				jsonName := jsonParts[0]")
+	g.P("				if jsonName != \"\" && jsonName != \"-\" {")
+	g.P("					paramVal, ok = params[jsonName]")
+	g.P("				}")
+	g.P("				// Try with GoName as last resort")
+	g.P("				if !ok {")
+	g.P("					paramVal, ok = params[fieldType.Name]")
+	g.P("				}")
+	g.P("				if !ok {")
+	g.P("					continue")
+	g.P("				}")
+	g.P("			}")
 	g.P("		}")
 	g.P()
 	g.P("		// Convert and set field value based on type")
@@ -973,23 +1046,113 @@ func generateMethodTool(g *protogen.GeneratedFile, service *protogen.Service, me
 						nestedValidationPattern := proto.GetExtension(nestedField.Desc.Options(), mcp.E_McpValidationPattern).(string)
 						
 						g.P("				properties[\"", nestedField.GoName, "\"] = map[string]interface{}{")
-						switch nestedField.Desc.Kind() {
-						case protoreflect.StringKind:
-							g.P("					\"type\": \"string\",")
-							if nestedValidationPattern != "" {
-								g.P("					\"pattern\": \"", nestedValidationPattern, "\",")
+						if nestedField.Desc.IsList() {
+							g.P("					\"type\": \"array\",")
+							g.P("					\"items\": map[string]interface{}{")
+							switch nestedField.Desc.Kind() {
+							case protoreflect.StringKind:
+								g.P("						\"type\": \"string\",")
+								if nestedValidationPattern != "" {
+									g.P("						\"pattern\": \"", nestedValidationPattern, "\",")
+								}
+							case protoreflect.Int32Kind, protoreflect.Int64Kind,
+								protoreflect.Uint32Kind, protoreflect.Uint64Kind:
+								g.P("						\"type\": \"number\",")
+							case protoreflect.BoolKind:
+								g.P("						\"type\": \"boolean\",")
+							case protoreflect.BytesKind:
+								g.P("						\"type\": \"string\",")
+								g.P("						\"format\": \"byte\",")
+							case protoreflect.MessageKind:
+								g.P("						\"type\": \"object\",")
+								if nestedField.Message != nil {
+									g.P("						\"properties\": map[string]interface{}{")
+									for _, msgField := range nestedField.Message.Fields {
+										msgFieldDesc := proto.GetExtension(msgField.Desc.Options(), mcp.E_McpFieldDescription).(string)
+										msgFieldValidationPattern := proto.GetExtension(msgField.Desc.Options(), mcp.E_McpValidationPattern).(string)
+										
+										g.P("							\"", msgField.GoName, "\": map[string]interface{}{")
+										switch msgField.Desc.Kind() {
+										case protoreflect.StringKind:
+											g.P("								\"type\": \"string\",")
+											if msgFieldValidationPattern != "" {
+												g.P("								\"pattern\": \"", msgFieldValidationPattern, "\",")
+											}
+										case protoreflect.Int32Kind, protoreflect.Int64Kind,
+											protoreflect.Uint32Kind, protoreflect.Uint64Kind:
+											g.P("								\"type\": \"number\",")
+										case protoreflect.BoolKind:
+											g.P("								\"type\": \"boolean\",")
+										case protoreflect.BytesKind:
+											g.P("								\"type\": \"string\",")
+											g.P("								\"format\": \"byte\",")
+										}
+										if msgFieldDesc != "" {
+											g.P("								\"description\": \"", msgFieldDesc, "\",")
+										}
+										g.P("							},")
+									}
+									g.P("						},")
+								}
+							case protoreflect.EnumKind:
+								g.P("						\"type\": \"string\",")
 							}
-						case protoreflect.Int32Kind, protoreflect.Int64Kind,
-							protoreflect.Uint32Kind, protoreflect.Uint64Kind:
-							g.P("					\"type\": \"number\",")
-						case protoreflect.BoolKind:
-							g.P("					\"type\": \"boolean\",")
-						case protoreflect.BytesKind:
-							g.P("					\"type\": \"string\",")
-							g.P("					\"format\": \"byte\",")
-						}
-						if nestedFieldDesc != "" {
-							g.P("					\"description\": \"", nestedFieldDesc, "\",")
+							if nestedFieldDesc != "" {
+								g.P("						\"description\": \"", nestedFieldDesc, "\",")
+							}
+							g.P("					},")
+						} else {
+							switch nestedField.Desc.Kind() {
+							case protoreflect.StringKind:
+								g.P("					\"type\": \"string\",")
+								if nestedValidationPattern != "" {
+									g.P("					\"pattern\": \"", nestedValidationPattern, "\",")
+								}
+							case protoreflect.Int32Kind, protoreflect.Int64Kind,
+								protoreflect.Uint32Kind, protoreflect.Uint64Kind:
+								g.P("					\"type\": \"number\",")
+							case protoreflect.BoolKind:
+								g.P("					\"type\": \"boolean\",")
+							case protoreflect.BytesKind:
+								g.P("					\"type\": \"string\",")
+								g.P("					\"format\": \"byte\",")
+							case protoreflect.MessageKind:
+								g.P("					\"type\": \"object\",")
+								if nestedField.Message != nil {
+									g.P("					\"properties\": map[string]interface{}{")
+									for _, msgField := range nestedField.Message.Fields {
+										msgFieldDesc := proto.GetExtension(msgField.Desc.Options(), mcp.E_McpFieldDescription).(string)
+										msgFieldValidationPattern := proto.GetExtension(msgField.Desc.Options(), mcp.E_McpValidationPattern).(string)
+										
+										g.P("						\"", msgField.GoName, "\": map[string]interface{}{")
+										switch msgField.Desc.Kind() {
+										case protoreflect.StringKind:
+											g.P("							\"type\": \"string\",")
+											if msgFieldValidationPattern != "" {
+												g.P("							\"pattern\": \"", msgFieldValidationPattern, "\",")
+											}
+										case protoreflect.Int32Kind, protoreflect.Int64Kind,
+											protoreflect.Uint32Kind, protoreflect.Uint64Kind:
+											g.P("							\"type\": \"number\",")
+										case protoreflect.BoolKind:
+											g.P("							\"type\": \"boolean\",")
+										case protoreflect.BytesKind:
+											g.P("							\"type\": \"string\",")
+											g.P("							\"format\": \"byte\",")
+										}
+										if msgFieldDesc != "" {
+											g.P("							\"description\": \"", msgFieldDesc, "\",")
+										}
+										g.P("					},")
+									}
+									g.P("					},")
+								}
+							case protoreflect.EnumKind:
+								g.P("					\"type\": \"string\",")
+							}
+							if nestedFieldDesc != "" {
+								g.P("					\"description\": \"", nestedFieldDesc, "\",")
+							}
 						}
 						g.P("				}")
 						if nestedIsRequired {
