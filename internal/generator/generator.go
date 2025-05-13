@@ -109,6 +109,24 @@ func GenerateFile(gen *protogen.Plugin, file *protogen.File) error {
 		return nil
 	}
 
+	// Check if any method in any service is annotated as a tool
+	hasAnyTool := false
+	for _, service := range file.Services {
+		for _, method := range service.Methods {
+			exposeAsTool, ok := proto.GetExtension(method.Desc.Options(), mcp.E_McpExposeAsTool).(bool)
+			if ok && exposeAsTool {
+				hasAnyTool = true
+				break
+			}
+		}
+		if hasAnyTool {
+			break
+		}
+	}
+	if !hasAnyTool {
+		return nil
+	}
+
 	// Generate the MCP server package
 	mcpFilename := file.GeneratedFilenamePrefix + ".mcp.pb.go"
 	mcpG := gen.NewGeneratedFile(mcpFilename, file.GoImportPath)
@@ -197,6 +215,10 @@ func generateService(g *protogen.GeneratedFile, service *protogen.Service, file 
 	g.P("// ", service.GoName, "MCPServer is the MCP server API for ", service.GoName, " service.")
 	g.P("type ", service.GoName, "MCPServer interface {")
 	for _, method := range service.Methods {
+		exposeAsTool, ok := proto.GetExtension(method.Desc.Options(), mcp.E_McpExposeAsTool).(bool)
+		if !ok || !exposeAsTool {
+			continue
+		}
 		g.P(method.GoName, "(context.Context, *", method.Input.GoIdent, ", ...grpc.CallOption) (*", method.Output.GoIdent, ", error)")
 	}
 	g.P("}")
@@ -240,82 +262,105 @@ func generateService(g *protogen.GeneratedFile, service *protogen.Service, file 
 	g.P("	// Register resources for request and response messages")
 	firstResource := true
 	for _, method := range service.Methods {
-		// Register input message as resource
-		g.P("	// Register ", method.Input.GoIdent, " as resource")
-		if firstResource {
-			g.P("	resource := mcp.Resource{")
-			firstResource = false
-		} else {
-			g.P("	resource = mcp.Resource{")
+		// Only register resources for methods that are exposed as tools
+		exposeAsTool, ok := proto.GetExtension(method.Desc.Options(), mcp.E_McpExposeAsTool).(bool)
+		if !ok || !exposeAsTool {
+			continue
 		}
-		g.P("		URI: \"", method.Input.GoIdent, "\",")
-		g.P("		Name: \"", method.Input.GoIdent, "\",")
-		g.P("		Description: \"Request message for ", method.GoName, " method\",")
-		g.P("		MIMEType: \"application/json\",")
-		g.P("	}")
-		g.P("	s.resources = append(s.resources, struct {")
-		g.P("		resource mcp.Resource")
-		g.P("		handler server.ResourceHandlerFunc")
-		g.P("	}{")
-		g.P("		resource: resource,")
-		g.P("		handler: func(ctx context.Context, request mcp.ReadResourceRequest) ([]mcp.ResourceContents, error) {")
-		g.P("			// Create a new instance of the request message")
-		g.P("			req := &", method.Input.GoIdent, "{}")
-		// Convert request parameters to message fields
-		g.P("			if err := convertParamsToMessage(request.Params.Arguments, req); err != nil {")
-		g.P("				return nil, err")
-		g.P("			}")
-		g.P("			// Serialize the message to JSON")
-		g.P("			jsonBytes, err := protojson.Marshal(req)")
-		g.P("			if err != nil {")
-		g.P("				return nil, fmt.Errorf(\"failed to serialize message: %v\", err)")
-		g.P("			}")
-		g.P("			return []mcp.ResourceContents{mcp.TextResourceContents{")
-		g.P("				Text: string(jsonBytes),")
-		g.P("			}}, nil")
-		g.P("		},")
-		g.P("	})")
-		g.P()
 
-		// Register output message as resource
-		g.P("	// Register ", method.Output.GoIdent, " as resource")
-		g.P("	resource = mcp.Resource{")
-		g.P("		URI: \"", method.Output.GoIdent, "\",")
-		g.P("		Name: \"", method.Output.GoIdent, "\",")
-		g.P("		Description: \"Response message for ", method.GoName, " method\",")
-		g.P("		MIMEType: \"application/json\",")
-		g.P("	}")
-		g.P("	s.resources = append(s.resources, struct {")
-		g.P("		resource mcp.Resource")
-		g.P("		handler server.ResourceHandlerFunc")
-		g.P("	}{")
-		g.P("		resource: resource,")
-		g.P("		handler: func(ctx context.Context, request mcp.ReadResourceRequest) ([]mcp.ResourceContents, error) {")
-		g.P("			// Create a new instance of the response message")
-		g.P("			resp := &", method.Output.GoIdent, "{}")
-		// Convert request parameters to message fields
-		g.P("			if err := convertParamsToMessage(request.Params.Arguments, resp); err != nil {")
-		g.P("				return nil, err")
-		g.P("			}")
-		g.P("			// Serialize the message to JSON")
-		g.P("			jsonBytes, err := protojson.Marshal(resp)")
-		g.P("			if err != nil {")
-		g.P("				return nil, fmt.Errorf(\"failed to serialize message: %v\", err)")
-		g.P("			}")
-		g.P("			return []mcp.ResourceContents{mcp.TextResourceContents{")
-		g.P("				Text: string(jsonBytes),")
-		g.P("			}}, nil")
-		g.P("		},")
-		g.P("	})")
-		g.P()
+		// Register input message as resource if annotated or used by a tool
+		inputExpose, _ := proto.GetExtension(method.Input.Desc.Options(), mcp.E_McpExposeAsResource).(bool)
+		if exposeAsTool || inputExpose {
+			g.P("\t// Register ", method.Input.GoIdent, " as resource")
+			if firstResource {
+				g.P("\tresource := mcp.Resource{")
+				firstResource = false
+			} else {
+				g.P("\tresource = mcp.Resource{")
+			}
+			g.P("\t\tURI: \"", method.Input.GoIdent, "\",")
+			g.P("\t\tName: \"", method.Input.GoIdent, "\",")
+			g.P("\t\tDescription: \"Request message for ", method.GoName, " method\",")
+			g.P("\t\tMIMEType: \"application/json\",")
+			g.P("\t}")
+			g.P("\ts.resources = append(s.resources, struct {")
+			g.P("\t\tresource mcp.Resource")
+			g.P("\t\thandler server.ResourceHandlerFunc")
+			g.P("\t}{")
+			g.P("\t\tresource: resource,")
+			g.P("\t\thandler: func(ctx context.Context, request mcp.ReadResourceRequest) ([]mcp.ResourceContents, error) {")
+			g.P("\t\t\t// Create a new instance of the request message")
+			g.P("\t\t\treq := &", method.Input.GoIdent, "{}")
+			g.P("\t\t\t// Convert request parameters to message fields")
+			g.P("\t\t\tif err := convertParamsToMessage(request.Params.Arguments, req); err != nil {")
+			g.P("\t\t\t\treturn nil, err")
+			g.P("\t\t\t}")
+			g.P("\t\t\t// Serialize the message to JSON")
+			g.P("\t\t\tjsonBytes, err := protojson.Marshal(req)")
+			g.P("\t\t\tif err != nil {")
+			g.P("\t\t\t\treturn nil, fmt.Errorf(\"failed to serialize message: %v\", err)")
+			g.P("\t\t\t}")
+			g.P("\t\t\treturn []mcp.ResourceContents{mcp.TextResourceContents{")
+			g.P("\t\t\t\tText: string(jsonBytes),")
+			g.P("\t\t\t}}, nil")
+			g.P("\t\t},")
+			g.P("\t})")
+			g.P()
+		}
+
+		// Register output message as resource if annotated or used by a tool
+		outputExpose, _ := proto.GetExtension(method.Output.Desc.Options(), mcp.E_McpExposeAsResource).(bool)
+		if exposeAsTool || outputExpose {
+			g.P("\t// Register ", method.Output.GoIdent, " as resource")
+			g.P("\tresource = mcp.Resource{")
+			g.P("\t\tURI: \"", method.Output.GoIdent, "\",")
+			g.P("\t\tName: \"", method.Output.GoIdent, "\",")
+			g.P("\t\tDescription: \"Response message for ", method.GoName, " method\",")
+			g.P("\t\tMIMEType: \"application/json\",")
+			g.P("\t}")
+			g.P("\ts.resources = append(s.resources, struct {")
+			g.P("\t\tresource mcp.Resource")
+			g.P("\t\thandler server.ResourceHandlerFunc")
+			g.P("\t}{")
+			g.P("\t\tresource: resource,")
+			g.P("\t\thandler: func(ctx context.Context, request mcp.ReadResourceRequest) ([]mcp.ResourceContents, error) {")
+			g.P("\t\t\t// Create a new instance of the response message")
+			g.P("\t\t\tresp := &", method.Output.GoIdent, "{}")
+			g.P("\t\t\t// Convert request parameters to message fields")
+			g.P("\t\t\tif err := convertParamsToMessage(request.Params.Arguments, resp); err != nil {")
+			g.P("\t\t\t\treturn nil, err")
+			g.P("\t\t\t}")
+			g.P("\t\t\t// Serialize the message to JSON")
+			g.P("\t\t\tjsonBytes, err := protojson.Marshal(resp)")
+			g.P("\t\t\tif err != nil {")
+			g.P("\t\t\t\treturn nil, fmt.Errorf(\"failed to serialize message: %v\", err)")
+			g.P("\t\t\t}")
+			g.P("\t\t\treturn []mcp.ResourceContents{mcp.TextResourceContents{")
+			g.P("\t\t\t\tText: string(jsonBytes),")
+			g.P("\t\t\t}}, nil")
+			g.P("\t\t},")
+			g.P("\t})")
+			g.P()
+		}
 	}
 
 	// Register all messages defined in the proto file as resources
-	g.P("	// Register all messages defined in the proto file as resources")
+	g.P("\t// Register all messages defined in the proto file as resources")
 	for _, message := range file.Messages {
+		// Check if this message should be exposed as a resource
+		exposeAsResource, ok := proto.GetExtension(message.Desc.Options(), mcp.E_McpExposeAsResource).(bool)
+		if !ok || !exposeAsResource {
+			continue
+		}
+
 		// Skip if this message is already registered as a request/response
 		isRegistered := false
 		for _, method := range service.Methods {
+			// Only consider methods that are exposed as tools
+			exposeAsTool, ok := proto.GetExtension(method.Desc.Options(), mcp.E_McpExposeAsTool).(bool)
+			if !ok || !exposeAsTool {
+				continue
+			}
 			if method.Input.GoIdent == message.GoIdent || method.Output.GoIdent == message.GoIdent {
 				isRegistered = true
 				break
@@ -828,12 +873,17 @@ func generateService(g *protogen.GeneratedFile, service *protogen.Service, file 
 }
 
 func generateMethodTool(g *protogen.GeneratedFile, service *protogen.Service, method *protogen.Method, hasCreatedTool bool, currentPkg string, importedPackages map[string]string) (bool, error) {
+	// Check if this method should be exposed as a tool
+	exposeAsTool, ok := proto.GetExtension(method.Desc.Options(), mcp.E_McpExposeAsTool).(bool)
+	if !ok || !exposeAsTool {
+		return false, nil
+	}
+
 	// Check if this is an MCP method by looking for mcp_tool_description
 	mcpDescription, ok := proto.GetExtension(method.Desc.Options(), mcp.E_McpToolDescription).(string)
 	if !ok || mcpDescription == "" {
 		return false, nil
 	}
-
 
 	// Get MCP method options
 	mcpTitle := proto.GetExtension(method.Desc.Options(), mcp.E_McpToolTitle).(string)

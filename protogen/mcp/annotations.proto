@@ -37,6 +37,8 @@ extend google.protobuf.MethodOptions {
   bool mcp_tool_idempotent = 50004;
   // If true, tool interacts with external entities
   bool mcp_tool_open_world = 50005;
+  // If true, this method should be exposed as an MCP tool
+  bool mcp_expose_as_tool = 50006;
 }
 
 // Field level annotations
@@ -61,4 +63,6 @@ extend google.protobuf.MessageOptions {
   string mcp_template_description = 50002;
   // Message description
   string mcp_message_description = 50003;
+  // If true, this message should be exposed as an MCP resource
+  bool mcp_expose_as_resource = 50004;
 }
