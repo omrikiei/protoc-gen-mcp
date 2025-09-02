@@ -156,10 +156,10 @@ func GenerateFile(gen *protogen.Plugin, file *protogen.File) error {
 		GoName:       "server",
 		GoImportPath: "github.com/mark3labs/mcp-go/server",
 	})
-	mcpG.QualifiedGoIdent(protogen.GoIdent{
-		GoName:       "protojson",
-		GoImportPath: "google.golang.org/protobuf/encoding/protojson",
-	})
+	//mcpG.QualifiedGoIdent(protogen.GoIdent{
+	//	GoName:       "protojson",
+	//	GoImportPath: "google.golang.org/protobuf/encoding/protojson",
+	//})
 	mcpG.QualifiedGoIdent(protogen.GoIdent{
 		GoName:       "grpc",
 		GoImportPath: "google.golang.org/grpc",
@@ -268,9 +268,9 @@ func generateService(g *protogen.GeneratedFile, service *protogen.Service, file 
 			continue
 		}
 
-		// Register input message as resource if annotated or used by a tool
-		inputExpose, _ := proto.GetExtension(method.Input.Desc.Options(), mcp.E_McpExposeAsResource).(bool)
-		if exposeAsTool || inputExpose {
+		// Register input message as resource if explicitly annotated
+		inputExpose, ok := proto.GetExtension(method.Input.Desc.Options(), mcp.E_McpExposeAsResource).(bool)
+		if ok && inputExpose {
 			g.P("\t// Register ", method.Input.GoIdent, " as resource")
 			if firstResource {
 				g.P("\tresource := mcp.Resource{")
@@ -308,9 +308,9 @@ func generateService(g *protogen.GeneratedFile, service *protogen.Service, file 
 			g.P()
 		}
 
-		// Register output message as resource if annotated or used by a tool
-		outputExpose, _ := proto.GetExtension(method.Output.Desc.Options(), mcp.E_McpExposeAsResource).(bool)
-		if exposeAsTool || outputExpose {
+		// Register output message as resource if explicitly annotated
+		outputExpose, ok := proto.GetExtension(method.Output.Desc.Options(), mcp.E_McpExposeAsResource).(bool)
+		if ok && outputExpose {
 			g.P("\t// Register ", method.Output.GoIdent, " as resource")
 			g.P("\tresource = mcp.Resource{")
 			g.P("\t\tURI: \"", method.Output.GoIdent, "\",")
@@ -990,7 +990,8 @@ func generateMethodTool(g *protogen.GeneratedFile, service *protogen.Service, me
 					if fieldDesc != "" {
 						g.P("				schema[\"description\"] = ", strconv.Quote(fieldDesc))
 					}
-					g.P("				schema[\"additionalProperties\"] = ", generateSchemaMapString(generateMessageJSONSchema(field.Message, make(map[string]bool))), "")
+					// Use simple schema for map types to avoid extremely long lines
+					g.P("				schema[\"additionalProperties\"] = map[string]interface{}{\"type\": \"object\"}")
 					g.P("			},")
 				}
 				g.P("		),")
@@ -1005,7 +1006,8 @@ func generateMethodTool(g *protogen.GeneratedFile, service *protogen.Service, me
 					if fieldDesc != "" {
 						g.P("				schema[\"description\"] = ", strconv.Quote(fieldDesc))
 					}
-					g.P("				schema[\"items\"] = ", generateSchemaMapString(generateMessageJSONSchema(field.Message, make(map[string]bool))), "")
+					// Use simple schema for array item types to avoid extremely long lines
+					g.P("				schema[\"items\"] = map[string]interface{}{\"type\": \"object\"}")
 					g.P("			},")
 				}
 				g.P("		),")
@@ -1020,10 +1022,9 @@ func generateMethodTool(g *protogen.GeneratedFile, service *protogen.Service, me
 					if fieldDesc != "" {
 						g.P("				schema[\"description\"] = ", strconv.Quote(fieldDesc))
 					}
-					g.P("				nestedSchema := ", generateSchemaMapString(generateMessageJSONSchema(field.Message, make(map[string]bool))), "")
-					g.P("				for k, v := range nestedSchema {")
-					g.P("					schema[k] = v")
-					g.P("				}")
+					// Always use simple schema for nested message types to avoid extremely long lines
+					// For complex nested types, just set the basic type and let the MCP runtime handle schema validation
+					g.P("				schema[\"type\"] = \"object\"")
 					g.P("			},")
 				}
 				g.P("		),")
@@ -1044,7 +1045,7 @@ func generateMethodTool(g *protogen.GeneratedFile, service *protogen.Service, me
 				g.P("			mcp.Pattern(\"", validationPattern, "\"),")
 			}
 			// Add enum values
-			g.P("			mcp.Enum(", generateEnumValuesString(field.Enum), "...),")
+			g.P("			mcp.Enum(", generateEnumValuesAsArguments(field.Enum), "),")
 			g.P("		),")
 		}
 	}
@@ -1356,9 +1357,6 @@ func getMapValueConversion(field *protogen.Field, valueVar, targetVar string, se
 		// For regular protobuf messages, just return the name without package
 		// The protogen package will handle the correct package name
 		fullName := string(msgDesc.Name())
-		if string(service.Desc.ParentFile().Package().Name()) != string(service.Desc.ParentFile().Package().Name()) {
-			fullName = string(service.Desc.ParentFile().Package().Name()) + "." + string(msgDesc.Name())
-		}
 		return fmt.Sprintf("if msgVal, ok := %s.(map[string]interface{}); ok {\n\t\t\t\t// Create a new instance of the nested message\n\t\t\t\tnestedMsg := %s{}\n\t\t\t\t// Convert nested message fields\n\t\t\t\tif err := convertParamsToMessage(msgVal, nestedMsg); err != nil {\n\t\t\t\t\treturn nil, fmt.Errorf(\"failed to convert nested message in map: %%v\", err)\n\t\t\t\t}\n\t\t\t\t%s = nestedMsg\n\t\t\t} else {\n\t\t\t\treturn nil, fmt.Errorf(\"map value must be a message\")\n\t\t\t}", valueVar, fullName, targetVar)
 	default:
 		return fmt.Sprintf("if strVal, ok := %s.(string); ok {\n\t\t\t\t%s = strVal\n\t\t\t} else {\n\t\t\t\treturn nil, fmt.Errorf(\"map value must be a string\")\n\t\t\t}", valueVar, targetVar)
@@ -1484,10 +1482,124 @@ func generateMessageJSONTemplateWithVisited(message *protogen.Message, visited m
 	return template
 }
 
+// getWellKnownTypeJSONSchema returns the JSON schema for well-known protobuf types
+func getWellKnownTypeJSONSchema(messageName string) map[string]interface{} {
+	switch messageName {
+	case "google.protobuf.Timestamp":
+		return map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"seconds": map[string]interface{}{"type": "number"},
+				"nanos":   map[string]interface{}{"type": "number"},
+			},
+		}
+	case "google.protobuf.Duration":
+		return map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"seconds": map[string]interface{}{"type": "number"},
+				"nanos":   map[string]interface{}{"type": "number"},
+			},
+		}
+	case "google.protobuf.FieldMask":
+		return map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"paths": map[string]interface{}{
+					"type":  "array",
+					"items": map[string]interface{}{"type": "string"},
+				},
+			},
+		}
+	case "google.protobuf.Empty":
+		return map[string]interface{}{
+			"type": "object",
+		}
+	case "google.protobuf.Any":
+		return map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"typeUrl": map[string]interface{}{"type": "string"},
+				"value":   map[string]interface{}{"type": "string", "format": "byte"},
+			},
+		}
+	case "google.protobuf.Struct":
+		return map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"fields": map[string]interface{}{
+					"type": "object",
+					"additionalProperties": map[string]interface{}{
+						"type": "object", // Value type
+					},
+				},
+			},
+		}
+	case "google.protobuf.Value":
+		return map[string]interface{}{
+			"type": "object",
+			// Value can be any type, so we use a more flexible schema
+		}
+	case "google.protobuf.ListValue":
+		return map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"values": map[string]interface{}{
+					"type":  "array",
+					"items": map[string]interface{}{"type": "object"}, // Value type
+				},
+			},
+		}
+	case "google.protobuf.BoolValue":
+		return map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"value": map[string]interface{}{"type": "boolean"},
+			},
+		}
+	case "google.protobuf.Int32Value", "google.protobuf.Int64Value",
+		"google.protobuf.UInt32Value", "google.protobuf.UInt64Value":
+		return map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"value": map[string]interface{}{"type": "number"},
+			},
+		}
+	case "google.protobuf.FloatValue", "google.protobuf.DoubleValue":
+		return map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"value": map[string]interface{}{"type": "number"},
+			},
+		}
+	case "google.protobuf.StringValue":
+		return map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"value": map[string]interface{}{"type": "string"},
+			},
+		}
+	case "google.protobuf.BytesValue":
+		return map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"value": map[string]interface{}{"type": "string", "format": "byte"},
+			},
+		}
+	}
+	return nil
+}
+
 // generateMessageJSONSchema generates a JSON schema for a protobuf message
 func generateMessageJSONSchema(message *protogen.Message, visited map[string]bool) map[string]interface{} {
-	// Check if we've already visited this message type to prevent circular references
 	messageName := string(message.Desc.FullName())
+
+	// Handle well-known types specially - these are always safe to reuse
+	if wellKnownSchema := getWellKnownTypeJSONSchema(messageName); wellKnownSchema != nil {
+		return wellKnownSchema
+	}
+
+	// Check if we've already visited this message type to prevent circular references
 	if visited[messageName] {
 		return map[string]interface{}{
 			"type": "object",
@@ -1564,23 +1676,22 @@ func generateMessageJSONSchema(message *protogen.Message, visited map[string]boo
 		case protoreflect.MessageKind:
 			if field.Desc.IsMap() {
 				fieldSchema["type"] = "object"
-				fieldSchema["additionalProperties"] = generateMessageJSONSchema(field.Message, visited)
+				fieldSchema["additionalProperties"] = map[string]interface{}{"type": "object"}
 			} else if field.Desc.IsList() {
 				fieldSchema["type"] = "array"
-				fieldSchema["items"] = generateMessageJSONSchema(field.Message, visited)
+				fieldSchema["items"] = map[string]interface{}{"type": "object"}
 			} else {
-				fieldSchema = generateMessageJSONSchema(field.Message, visited)
+				fieldSchema["type"] = "object"
 			}
 		case protoreflect.EnumKind:
 			if field.Desc.IsList() {
 				fieldSchema["type"] = "array"
-				fieldSchema["items"] = map[string]interface{}{
+				itemSchema := map[string]interface{}{
 					"type": "string",
-					"enum": getEnumValues(field.Enum),
 				}
+				fieldSchema["items"] = itemSchema
 			} else {
 				fieldSchema["type"] = "string"
-				fieldSchema["enum"] = getEnumValues(field.Enum)
 			}
 		}
 
@@ -1594,11 +1705,20 @@ func generateMessageJSONSchema(message *protogen.Message, visited map[string]boo
 		schema["required"] = requiredFields
 	}
 
+	// Clean up any nil enum values in the schema recursively
+	cleanupNilEnumValues(schema)
+
+	// Remove from visited map to allow reuse in other contexts
+	delete(visited, messageName)
+
 	return schema
 }
 
 // getEnumValues returns a list of enum values as strings
 func getEnumValues(enum *protogen.Enum) []string {
+	if enum == nil {
+		return []string{}
+	}
 	values := make([]string, 0, len(enum.Values))
 	for _, value := range enum.Values {
 		values = append(values, string(value.Desc.Name()))
@@ -1606,11 +1726,40 @@ func getEnumValues(enum *protogen.Enum) []string {
 	return values
 }
 
+// cleanupNilEnumValues recursively removes nil enum values from schema maps
+func cleanupNilEnumValues(value interface{}) {
+	switch v := value.(type) {
+	case map[string]interface{}:
+		// Clean up this map
+		for k, val := range v {
+			if k == "enum" && val == nil {
+				delete(v, k)
+			} else {
+				// Recursively clean up nested values
+				cleanupNilEnumValues(val)
+			}
+		}
+	case []interface{}:
+		// Clean up array elements
+		for _, item := range v {
+			cleanupNilEnumValues(item)
+		}
+	}
+}
+
 // generateSchemaMapString converts a schema map to a Go map literal string
+// For complex schemas, this can create very long lines that may get truncated
+// We'll use a more conservative approach to avoid this issue
 func generateSchemaMapString(schema map[string]interface{}) string {
+	// Check if the schema is complex (has nested objects or many properties)
+	if isComplexSchema(schema) {
+		// For complex schemas, use a simpler fallback that just sets the basic type
+		return `map[string]interface{}{"type": "object"}`
+	}
+
 	var result strings.Builder
 	result.WriteString("map[string]interface{}{")
-	
+
 	// Sort keys for deterministic output
 	keys := make([]string, 0, len(schema))
 	for k := range schema {
@@ -1618,13 +1767,21 @@ func generateSchemaMapString(schema map[string]interface{}) string {
 	}
 	sort.Strings(keys)
 
-	for i, k := range keys {
-		if i > 0 {
+	first := true
+	for _, k := range keys {
+		v := schema[k]
+		// Skip nil values to avoid invalid JSON
+		if v == nil {
+			continue
+		}
+
+		if !first {
 			result.WriteString(", ")
 		}
-		v := schema[k]
+		first = false
+
 		result.WriteString(fmt.Sprintf("%q: ", k))
-		
+
 		switch val := v.(type) {
 		case string:
 			result.WriteString(fmt.Sprintf("%q", val))
@@ -1635,26 +1792,97 @@ func generateSchemaMapString(schema map[string]interface{}) string {
 		case []interface{}:
 			result.WriteString(generateArrayString(val))
 		case map[string]interface{}:
-			result.WriteString(generateSchemaMapString(val))
+			// Limit recursion depth to prevent extremely long lines
+			if isComplexSchema(val) {
+				result.WriteString(`map[string]interface{}{"type": "object"}`)
+			} else {
+				result.WriteString(generateSchemaMapString(val))
+			}
+		case []string:
+			// Handle string slices which might be enum values
+			if len(val) == 0 {
+				// Skip empty enum arrays instead of writing nil
+				first = true // Reset first flag since we're skipping this entry
+				continue
+			}
+			// Generate proper array syntax for string slices
+			result.WriteString("[]interface{}{")
+			for i, s := range val {
+				if i > 0 {
+					result.WriteString(", ")
+				}
+				result.WriteString(fmt.Sprintf("%q", s))
+			}
+			result.WriteString("}")
 		default:
-			result.WriteString("nil")
+			// Skip unknown types instead of writing "nil"
+			// This might be a nil value in a different form
+			first = true // Reset first flag since we're skipping this entry
+			continue
 		}
 	}
-	
+
 	result.WriteString("}")
 	return result.String()
+}
+
+// isComplexSchema returns true if the schema is complex and would generate very long lines
+func isComplexSchema(schema map[string]interface{}) bool {
+	// Consider a schema complex if it has:
+	// 1. More than 5 properties
+	// 2. Nested objects with properties
+	// 3. Arrays with complex item schemas
+
+	if len(schema) > 5 {
+		return true
+	}
+
+	for _, v := range schema {
+		switch val := v.(type) {
+		case map[string]interface{}:
+			// Check if this nested object has properties (making it complex)
+			if properties, ok := val["properties"]; ok {
+				if props, ok := properties.(map[string]interface{}); ok && len(props) > 3 {
+					return true
+				}
+			}
+			// Recursively check nested maps
+			if len(val) > 3 {
+				return true
+			}
+		case []interface{}:
+			// Arrays with more than 3 items or complex items
+			if len(val) > 3 {
+				return true
+			}
+			for _, item := range val {
+				if itemMap, ok := item.(map[string]interface{}); ok && len(itemMap) > 2 {
+					return true
+				}
+			}
+		}
+	}
+
+	return false
 }
 
 // generateArrayString converts an array to a Go slice literal string
 func generateArrayString(arr []interface{}) string {
 	var result strings.Builder
 	result.WriteString("[]interface{}{")
-	
-	for i, v := range arr {
-		if i > 0 {
+
+	first := true
+	for _, v := range arr {
+		// Skip nil values to avoid invalid JSON
+		if v == nil {
+			continue
+		}
+
+		if !first {
 			result.WriteString(", ")
 		}
-		
+		first = false
+
 		switch val := v.(type) {
 		case string:
 			result.WriteString(fmt.Sprintf("%q", val))
@@ -1670,24 +1898,22 @@ func generateArrayString(arr []interface{}) string {
 			result.WriteString("nil")
 		}
 	}
-	
+
 	result.WriteString("}")
 	return result.String()
 }
 
-// generateEnumValuesString converts enum values to a Go slice literal string
-func generateEnumValuesString(enum *protogen.Enum) string {
+// generateEnumValuesAsArguments converts enum values to individual quoted arguments for function calls
+func generateEnumValuesAsArguments(enum *protogen.Enum) string {
 	values := getEnumValues(enum)
 	var result strings.Builder
-	result.WriteString("[]string{")
-	
+
 	for i, v := range values {
 		if i > 0 {
 			result.WriteString(", ")
 		}
 		result.WriteString(fmt.Sprintf("%q", v))
 	}
-	
-	result.WriteString("}")
+
 	return result.String()
 }
