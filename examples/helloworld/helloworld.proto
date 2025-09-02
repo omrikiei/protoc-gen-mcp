@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package helloworld;
 
-import "protogen/mcp/annotations.proto";
+import "mcp/annotations.proto";
 
 option go_package = "github.com/omrikiei/protoc-gen-mcp/examples/helloworld";
 

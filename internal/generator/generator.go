@@ -990,8 +990,13 @@ func generateMethodTool(g *protogen.GeneratedFile, service *protogen.Service, me
 					if fieldDesc != "" {
 						g.P("				schema[\"description\"] = ", strconv.Quote(fieldDesc))
 					}
-					// Use simple schema for map types to avoid extremely long lines
-					g.P("				schema[\"additionalProperties\"] = map[string]interface{}{\"type\": \"object\"}")
+					// Check if this message should be exposed based on new field-by-field logic
+					if shouldExposeMessage(field.Message) {
+						nestedSchema := generateMessageJSONSchema(field.Message, make(map[string]bool))
+						g.P("				schema[\"additionalProperties\"] = ", generateSchemaMapString(nestedSchema))
+					} else {
+						g.P("				schema[\"additionalProperties\"] = map[string]interface{}{\"type\": \"object\"}")
+					}
 					g.P("			},")
 				}
 				g.P("		),")
@@ -1006,8 +1011,13 @@ func generateMethodTool(g *protogen.GeneratedFile, service *protogen.Service, me
 					if fieldDesc != "" {
 						g.P("				schema[\"description\"] = ", strconv.Quote(fieldDesc))
 					}
-					// Use simple schema for array item types to avoid extremely long lines
-					g.P("				schema[\"items\"] = map[string]interface{}{\"type\": \"object\"}")
+					// Check if this message should be exposed based on new field-by-field logic
+					if shouldExposeMessage(field.Message) {
+						nestedSchema := generateMessageJSONSchema(field.Message, make(map[string]bool))
+						g.P("				schema[\"items\"] = ", generateSchemaMapString(nestedSchema))
+					} else {
+						g.P("				schema[\"items\"] = map[string]interface{}{\"type\": \"object\"}")
+					}
 					g.P("			},")
 				}
 				g.P("		),")
@@ -1022,9 +1032,16 @@ func generateMethodTool(g *protogen.GeneratedFile, service *protogen.Service, me
 					if fieldDesc != "" {
 						g.P("				schema[\"description\"] = ", strconv.Quote(fieldDesc))
 					}
-					// Always use simple schema for nested message types to avoid extremely long lines
-					// For complex nested types, just set the basic type and let the MCP runtime handle schema validation
-					g.P("				schema[\"type\"] = \"object\"")
+					// Check if this message should be exposed based on new field-by-field logic
+					if shouldExposeMessage(field.Message) {
+						nestedSchema := generateMessageJSONSchema(field.Message, make(map[string]bool))
+						g.P("				nestedSchema := ", generateSchemaMapString(nestedSchema))
+						g.P("				for k, v := range nestedSchema {")
+						g.P("					schema[k] = v")
+						g.P("				}")
+					} else {
+						g.P("				schema[\"type\"] = \"object\"")
+					}
 					g.P("			},")
 				}
 				g.P("		),")
@@ -1614,8 +1631,20 @@ func generateMessageJSONSchema(message *protogen.Message, visited map[string]boo
 
 	requiredFields := make([]string, 0)
 
+	// Determine if this message should expose all fields by default
+	exposeAllFields := shouldExposeMessage(message)
+	
 	for _, field := range message.Fields {
 		fieldName := field.Desc.JSONName()
+		
+		// Check if this specific field should be exposed
+		shouldExposeThisField := shouldExposeField(field) || exposeAllFields
+		
+		// Skip fields that shouldn't be exposed
+		if !shouldExposeThisField {
+			continue
+		}
+		
 		fieldSchema := make(map[string]interface{})
 
 		// Get MCP field annotations
@@ -1676,12 +1705,33 @@ func generateMessageJSONSchema(message *protogen.Message, visited map[string]boo
 		case protoreflect.MessageKind:
 			if field.Desc.IsMap() {
 				fieldSchema["type"] = "object"
-				fieldSchema["additionalProperties"] = map[string]interface{}{"type": "object"}
+				// For exposed messages, generate nested schema for map values
+				if field.Message != nil && shouldExposeMessage(field.Message) {
+					nestedSchema := generateMessageJSONSchema(field.Message, visited)
+					fieldSchema["additionalProperties"] = nestedSchema
+				} else {
+					fieldSchema["additionalProperties"] = map[string]interface{}{"type": "object"}
+				}
 			} else if field.Desc.IsList() {
 				fieldSchema["type"] = "array"
-				fieldSchema["items"] = map[string]interface{}{"type": "object"}
+				// For exposed messages, generate nested schema for array items
+				if field.Message != nil && shouldExposeMessage(field.Message) {
+					nestedSchema := generateMessageJSONSchema(field.Message, visited)
+					fieldSchema["items"] = nestedSchema
+				} else {
+					fieldSchema["items"] = map[string]interface{}{"type": "object"}
+				}
 			} else {
-				fieldSchema["type"] = "object"
+				// For exposed messages, generate nested schema
+				if field.Message != nil && shouldExposeMessage(field.Message) {
+					nestedSchema := generateMessageJSONSchema(field.Message, visited)
+					// Merge nested schema properties into field schema
+					for k, v := range nestedSchema {
+						fieldSchema[k] = v
+					}
+				} else {
+					fieldSchema["type"] = "object"
+				}
 			}
 		case protoreflect.EnumKind:
 			if field.Desc.IsList() {
@@ -1824,6 +1874,103 @@ func generateSchemaMapString(schema map[string]interface{}) string {
 
 	result.WriteString("}")
 	return result.String()
+}
+
+// SchemaDetailLevel represents the level of detail for schema generation
+type SchemaDetailLevel int
+
+const (
+	SchemaDetailAuto     SchemaDetailLevel = 0 // Automatic based on complexity
+	SchemaDetailSimple   SchemaDetailLevel = 1 // Force simple schema
+	SchemaDetailDetailed SchemaDetailLevel = 2 // Force detailed schema
+)
+
+// getSchemaDetailLevel determines the schema detail level for a field or message
+func getSchemaDetailLevel(field *protogen.Field, message *protogen.Message) SchemaDetailLevel {
+	// Check field-level annotations first
+	if field != nil {
+		exposeField := proto.GetExtension(field.Desc.Options(), mcp.E_McpExposeField)
+		if exposeField != nil && exposeField.(bool) {
+			return SchemaDetailDetailed
+		}
+	}
+
+	// Check message-level annotations
+	if message != nil {
+		exposeMessage := proto.GetExtension(message.Desc.Options(), mcp.E_McpExposeMessage)
+		if exposeMessage != nil && exposeMessage.(bool) {
+			return SchemaDetailDetailed
+		}
+	}
+
+	return SchemaDetailAuto
+}
+
+// shouldUseDetailedSchema determines if we should generate a detailed schema based on annotations and complexity
+func shouldUseDetailedSchema(field *protogen.Field, message *protogen.Message, schema map[string]interface{}) bool {
+	detailLevel := getSchemaDetailLevel(field, message)
+
+	switch detailLevel {
+	case SchemaDetailSimple:
+		return false
+	case SchemaDetailDetailed:
+		return true
+	case SchemaDetailAuto:
+		// Use detailed schema only if it's not too complex
+		return !isComplexSchema(schema)
+	}
+
+	return false
+}
+
+// calculateNestingDepth calculates the maximum nesting depth of a message
+func calculateNestingDepth(message *protogen.Message, visited map[string]int) int {
+	messageName := string(message.Desc.FullName())
+	
+	// Check if we've already calculated this message's depth (prevent infinite recursion)
+	if depth, exists := visited[messageName]; exists {
+		return depth
+	}
+	
+	// Start with depth 1 for this message
+	maxDepth := 1
+	visited[messageName] = maxDepth // Mark as visited with temporary depth
+	
+	// Check all fields for nested messages
+	for _, field := range message.Fields {
+		if field.Message != nil {
+			nestedDepth := 1 + calculateNestingDepth(field.Message, visited)
+			if nestedDepth > maxDepth {
+				maxDepth = nestedDepth
+			}
+		}
+	}
+	
+	// Update with final depth
+	visited[messageName] = maxDepth
+	return maxDepth
+}
+
+// shouldExposeMessage determines if a message should be fully exposed based on annotations and nesting depth
+func shouldExposeMessage(message *protogen.Message) bool {
+	// Check explicit message-level annotation first
+	exposeMessage := proto.GetExtension(message.Desc.Options(), mcp.E_McpExposeMessage)
+	if exposeMessage != nil {
+		return exposeMessage.(bool)
+	}
+	
+	// Auto-exposure: expose messages with 2 levels of nesting or less by default
+	depth := calculateNestingDepth(message, make(map[string]int))
+	return depth <= 2
+}
+
+// shouldExposeField determines if a specific field should be exposed
+func shouldExposeField(field *protogen.Field) bool {
+	exposeField := proto.GetExtension(field.Desc.Options(), mcp.E_McpExposeField)
+	if exposeField != nil {
+		return exposeField.(bool)
+	}
+	return false
 }
 
 // isComplexSchema returns true if the schema is complex and would generate very long lines

@@ -1,16 +1,4 @@
-# For details on buf.yaml configuration, visit https://buf.build/docs/configuration/v2/buf-yaml
 version: v2
-name: buf.build/omrikiei/examples
 deps:
-  - buf.build/googleapis/googleapis
-  - buf.build/grpc-ecosystem/grpc-gateway
   - buf.build/omrikiei/mcp
-lint:
-  use:
-    - STANDARD
-breaking:
-  use:
-    - FILE
-workspace:
-  - .
-  - ../protogen
+  - buf.build/googleapis/googleapis

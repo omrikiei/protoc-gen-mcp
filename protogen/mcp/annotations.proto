@@ -53,6 +53,9 @@ extend google.protobuf.FieldOptions {
   bool mcp_required = 50004;
   string mcp_validation_pattern = 50005;
   string mcp_validation_message = 50006;
+  
+  // Schema generation control
+  bool mcp_expose_field = 50007;     // Expose detailed schema for this field to LLMs
 }
 
 // Message level annotations
@@ -65,4 +68,8 @@ extend google.protobuf.MessageOptions {
   string mcp_message_description = 50003;
   // If true, this message should be exposed as an MCP resource
   bool mcp_expose_as_resource = 50004;
+  
+  // Schema generation control
+  bool mcp_expose_message = 50010;    // Expose detailed schema for this message to LLMs
+  int32 mcp_schema_max_depth = 50011; // Maximum depth for schema generation (default: 2)
 }

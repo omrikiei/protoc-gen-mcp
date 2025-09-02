@@ -1,0 +1,43 @@
+syntax = "proto3";
+
+package test;
+
+import "mcp/annotations.proto";
+
+option go_package = "github.com/mark3labs/protoc-gen-mcp/examples/test";
+
+service TestService {
+  option (mcp.mcp_type) = "tool";
+  
+  rpc TestRPC(TestRequest) returns (TestResponse) {
+    option (mcp.mcp_expose_as_tool) = true;
+  }
+}
+
+message TestRequest {
+  TestFilters filters = 1 [
+    (mcp.mcp_expose_field) = true,
+    (mcp.mcp_field_description) = "Test filters with detailed schema"
+  ];
+}
+
+message TestFilters {
+  string name = 1 [
+    (mcp.mcp_expose_field) = true,
+    (mcp.mcp_field_description) = "Name filter"
+  ];
+  
+  string category = 2 [
+    (mcp.mcp_expose_field) = true,
+    (mcp.mcp_field_description) = "Category filter"
+  ];
+  
+  repeated string tags = 3 [
+    (mcp.mcp_expose_field) = true,
+    (mcp.mcp_field_description) = "Tags filter"
+  ];
+}
+
+message TestResponse {
+  string result = 1;
+}
