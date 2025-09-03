@@ -993,7 +993,7 @@ func generateMethodTool(g *protogen.GeneratedFile, service *protogen.Service, me
 					// Check if this message should be exposed based on new field-by-field logic
 					if shouldExposeMessage(field.Message) {
 						nestedSchema := generateMessageJSONSchema(field.Message, make(map[string]bool))
-						g.P("				schema[\"additionalProperties\"] = ", generateSchemaMapString(nestedSchema))
+						g.P("				schema[\"additionalProperties\"] = ", generateSchemaMapStringForced(nestedSchema))
 					} else {
 						g.P("				schema[\"additionalProperties\"] = map[string]interface{}{\"type\": \"object\"}")
 					}
@@ -1014,7 +1014,7 @@ func generateMethodTool(g *protogen.GeneratedFile, service *protogen.Service, me
 					// Check if this message should be exposed based on new field-by-field logic
 					if shouldExposeMessage(field.Message) {
 						nestedSchema := generateMessageJSONSchema(field.Message, make(map[string]bool))
-						g.P("				schema[\"items\"] = ", generateSchemaMapString(nestedSchema))
+						g.P("				schema[\"items\"] = ", generateSchemaMapStringForced(nestedSchema))
 					} else {
 						g.P("				schema[\"items\"] = map[string]interface{}{\"type\": \"object\"}")
 					}
@@ -1035,7 +1035,7 @@ func generateMethodTool(g *protogen.GeneratedFile, service *protogen.Service, me
 					// Check if this message should be exposed based on new field-by-field logic
 					if shouldExposeMessage(field.Message) {
 						nestedSchema := generateMessageJSONSchema(field.Message, make(map[string]bool))
-						g.P("				nestedSchema := ", generateSchemaMapString(nestedSchema))
+						g.P("				nestedSchema := ", generateSchemaMapStringForced(nestedSchema))
 						g.P("				for k, v := range nestedSchema {")
 						g.P("					schema[k] = v")
 						g.P("				}")
@@ -1633,18 +1633,18 @@ func generateMessageJSONSchema(message *protogen.Message, visited map[string]boo
 
 	// Determine if this message should expose all fields by default
 	exposeAllFields := shouldExposeMessage(message)
-	
+
 	for _, field := range message.Fields {
 		fieldName := field.Desc.JSONName()
-		
+
 		// Check if this specific field should be exposed
 		shouldExposeThisField := shouldExposeField(field) || exposeAllFields
-		
+
 		// Skip fields that shouldn't be exposed
 		if !shouldExposeThisField {
 			continue
 		}
-		
+
 		fieldSchema := make(map[string]interface{})
 
 		// Get MCP field annotations
@@ -1797,6 +1797,12 @@ func cleanupNilEnumValues(value interface{}) {
 	}
 }
 
+// generateSchemaMapStringForced converts a schema map to a Go map literal string
+// This version always generates the full schema regardless of complexity when mcp annotations are present
+func generateSchemaMapStringForced(schema map[string]interface{}) string {
+	return generateSchemaMapStringInternal(schema, false)
+}
+
 // generateSchemaMapString converts a schema map to a Go map literal string
 // For complex schemas, this can create very long lines that may get truncated
 // We'll use a more conservative approach to avoid this issue
@@ -1806,6 +1812,11 @@ func generateSchemaMapString(schema map[string]interface{}) string {
 		// For complex schemas, use a simpler fallback that just sets the basic type
 		return `map[string]interface{}{"type": "object"}`
 	}
+	return generateSchemaMapStringInternal(schema, true)
+}
+
+// generateSchemaMapStringInternal is the internal implementation
+func generateSchemaMapStringInternal(schema map[string]interface{}, respectComplexity bool) string {
 
 	var result strings.Builder
 	result.WriteString("map[string]interface{}{")
@@ -1840,13 +1851,13 @@ func generateSchemaMapString(schema map[string]interface{}) string {
 		case float64:
 			result.WriteString(fmt.Sprintf("%v", val))
 		case []interface{}:
-			result.WriteString(generateArrayString(val))
+			result.WriteString(generateArrayStringInternal(val, respectComplexity))
 		case map[string]interface{}:
 			// Limit recursion depth to prevent extremely long lines
-			if isComplexSchema(val) {
+			if respectComplexity && isComplexSchema(val) {
 				result.WriteString(`map[string]interface{}{"type": "object"}`)
 			} else {
-				result.WriteString(generateSchemaMapString(val))
+				result.WriteString(generateSchemaMapStringInternal(val, respectComplexity))
 			}
 		case []string:
 			// Handle string slices which might be enum values
@@ -1926,16 +1937,16 @@ func shouldUseDetailedSchema(field *protogen.Field, message *protogen.Message, s
 // calculateNestingDepth calculates the maximum nesting depth of a message
 func calculateNestingDepth(message *protogen.Message, visited map[string]int) int {
 	messageName := string(message.Desc.FullName())
-	
+
 	// Check if we've already calculated this message's depth (prevent infinite recursion)
 	if depth, exists := visited[messageName]; exists {
 		return depth
 	}
-	
+
 	// Start with depth 1 for this message
 	maxDepth := 1
 	visited[messageName] = maxDepth // Mark as visited with temporary depth
-	
+
 	// Check all fields for nested messages
 	for _, field := range message.Fields {
 		if field.Message != nil {
@@ -1945,7 +1956,7 @@ func calculateNestingDepth(message *protogen.Message, visited map[string]int) in
 			}
 		}
 	}
-	
+
 	// Update with final depth
 	visited[messageName] = maxDepth
 	return maxDepth
@@ -1958,7 +1969,7 @@ func shouldExposeMessage(message *protogen.Message) bool {
 	if exposeMessage != nil {
 		return exposeMessage.(bool)
 	}
-	
+
 	// Auto-exposure: expose messages with 2 levels of nesting or less by default
 	depth := calculateNestingDepth(message, make(map[string]int))
 	return depth <= 2
@@ -2015,6 +2026,11 @@ func isComplexSchema(schema map[string]interface{}) bool {
 
 // generateArrayString converts an array to a Go slice literal string
 func generateArrayString(arr []interface{}) string {
+	return generateArrayStringInternal(arr, true)
+}
+
+// generateArrayStringInternal converts an array to a Go slice literal string
+func generateArrayStringInternal(arr []interface{}, respectComplexity bool) string {
 	var result strings.Builder
 	result.WriteString("[]interface{}{")
 
@@ -2038,9 +2054,9 @@ func generateArrayString(arr []interface{}) string {
 		case float64:
 			result.WriteString(fmt.Sprintf("%v", val))
 		case []interface{}:
-			result.WriteString(generateArrayString(val))
+			result.WriteString(generateArrayStringInternal(val, respectComplexity))
 		case map[string]interface{}:
-			result.WriteString(generateSchemaMapString(val))
+			result.WriteString(generateSchemaMapStringInternal(val, respectComplexity))
 		default:
 			result.WriteString("nil")
 		}
